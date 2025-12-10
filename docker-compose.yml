@@ -1,0 +1,78 @@
+services:
+  api:
+    build: .
+    container_name: datasearch_api
+    command: uvicorn lib.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/datasearch_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - datasearch_network
+
+  worker:
+    build: .
+    container_name: datasearch_worker
+    command: celery -A worker.celery_app worker --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/datasearch_db
+      - REDIS_URL=redis://redis:6379/0
+      - SENTENCE_TRANSFORMERS_HOME=/app/models_cache
+    depends_on:
+      - db
+      - redis
+    networks:
+      - datasearch_network
+
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: datasearch_db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: datasearch_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d datasearch_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - datasearch_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: datasearch_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - datasearch_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  datasearch_network:
+    driver: bridge
