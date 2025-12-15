@@ -2,7 +2,7 @@ services:
   api:
     build: .
     container_name: datasearch_api
-    command: uvicorn lib.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uv run uvicorn lib.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - .:/app
     ports:
@@ -23,7 +23,7 @@ services:
   worker:
     build: .
     container_name: datasearch_worker
-    command: celery -A worker.celery_app worker --loglevel=info
+    command: uv run celery -A lib.worker.celery_app worker --loglevel=info
     volumes:
       - .:/app
     env_file:

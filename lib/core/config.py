@@ -28,6 +28,11 @@ class Settings(BaseSettings):
 
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
 
+    # External API tokens
+    HF_TOKEN: str | None = None
+    KAGGLE_USERNAME: str | None = None
+    KAGGLE_KEY: str | None = None
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """Database connection URI."""

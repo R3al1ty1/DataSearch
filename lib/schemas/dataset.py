@@ -1,7 +1,53 @@
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from pydantic import BaseModel, Field, HttpUrl, ConfigDict
+
+
+class HFDatasetDTO(BaseModel):
+    """DTO for HuggingFace API response."""
+    id: str = Field(..., description="Repo ID")
+    sha: Optional[str] = None
+
+    last_modified: Optional[datetime] = Field(default=None, alias="lastModified")
+    created_at: Optional[datetime] = Field(default=None, alias="createdAt")
+
+    downloads: int = 0
+    likes: int = 0
+    tags: List[str] = Field(default_factory=list)
+    description: Optional[str] = None
+
+    card_data: Optional[dict] = Field(default=None, alias="cardData")
+    dataset_info: Optional[dict] = Field(default=None, alias="datasetInfo")
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    @property
+    def title(self) -> str:
+        if self.card_data and "pretty_name" in self.card_data:
+            return str(self.card_data["pretty_name"])
+        return self.id.split("/")[-1]
+
+    @property
+    def license(self) -> Optional[str]:
+        if self.card_data and "license" in self.card_data:
+            lic = self.card_data["license"]
+            if isinstance(lic, list) and lic:
+                return str(lic[0])
+            if isinstance(lic, str):
+                return lic
+        for tag in self.tags:
+            if tag.startswith("license:"):
+                return tag.split(":", 1)[1]
+        return None
+
+    def get_update_time(self) -> datetime:
+        """Get dataset update time safely."""
+        if self.last_modified:
+            return self.last_modified
+        if self.created_at:
+            return self.created_at
+        return datetime.now(timezone.utc)
 
 
 class SearchRequest(BaseModel):
