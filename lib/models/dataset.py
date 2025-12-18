@@ -12,6 +12,12 @@ from pgvector.sqlalchemy import Vector
 from lib.models.base import Base, TimestampMixin, UUIDMixin
 
 
+class DatasetFieldsExclude:
+    """Fields to exclude during upsert operations."""
+    ON_INSERT = {'id', 'created_at', 'updated_at'}
+    ON_UPDATE = {'id', 'created_at', 'updated_at', 'enrichment_attempts'}
+
+
 class EnrichmentStatus(str, Enum):
     """Dataset enrichment status."""
     MINIMAL = "minimal"

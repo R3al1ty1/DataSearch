@@ -10,6 +10,7 @@ from lib.models.enrichment_log import (
     EnrichmentResult
 )
 from lib.repositories.base import BaseRepository
+from lib.schemas.stats import EnrichmentStageStats, ErrorStats
 
 
 class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
@@ -78,7 +79,7 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
 
     async def get_stats_by_stage_and_result(
         self, hours: int = 24
-    ) -> list[dict]:
+    ) -> list[EnrichmentStageStats]:
         """Get enrichment statistics grouped by stage and result."""
         since = datetime.utcnow() - timedelta(hours=hours)
 
@@ -99,20 +100,20 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         )
 
         return [
-            {
-                'stage': row.stage,
-                'result': row.result,
-                'count': row.count,
-                'avg_duration_ms': (
+            EnrichmentStageStats(
+                stage=row.stage,
+                result=row.result,
+                count=row.count,
+                avg_duration_ms=(
                     float(row.avg_duration_ms) if row.avg_duration_ms else None
                 )
-            }
+            )
             for row in result.all()
         ]
 
     async def get_top_errors(
         self, hours: int = 168, limit: int = 10
-    ) -> list[dict]:
+    ) -> list[ErrorStats]:
         """Get top error types in the last N hours."""
         since = datetime.utcnow() - timedelta(hours=hours)
 
@@ -136,10 +137,10 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         )
 
         return [
-            {
-                'error_type': row.error_type,
-                'count': row.error_count
-            }
+            ErrorStats(
+                error_type=row.error_type,
+                count=row.error_count
+            )
             for row in result.all()
         ]
 

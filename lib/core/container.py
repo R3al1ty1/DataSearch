@@ -4,7 +4,7 @@ from lib.core.config import Settings
 from lib.core.database import DatabaseManager
 from lib.core.logger import LoggerManager
 from lib.services.ml.embedder import EmbeddingService
-from lib.services.enrichment.client_hf import HuggingFaceClient
+from lib.services.enrichment.hf_parser import HuggingFaceClient
 from lib.services.enrichment.kaggle_parser import KaggleClient
 
 

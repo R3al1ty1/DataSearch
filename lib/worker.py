@@ -1,4 +1,3 @@
-"""Celery worker configuration and tasks."""
 from celery import Celery
 
 from lib.core.container import container
@@ -9,7 +8,11 @@ celery_app = Celery(
     "datasearch",
     broker=str(settings.REDIS_URL),
     backend=str(settings.REDIS_URL),
-    include=["lib.crons.enrich", "lib.crons.cleanup"]
+    include=[
+        "lib.crons.enrich",
+        "lib.crons.cleanup",
+        "lib.services.enrichment.kaggle_parser.background"
+    ]
 )
 
 celery_app.conf.update(
