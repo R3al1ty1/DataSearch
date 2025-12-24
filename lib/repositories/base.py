@@ -10,41 +10,40 @@ ModelType = TypeVar("ModelType", bound=Base)
 
 
 class BaseRepository(Generic[ModelType]):
-    """Base repository with common CRUD operations."""
+    """Base repository with common CRUD operations (stateless)."""
 
-    def __init__(self, model: type[ModelType], session: AsyncSession):
+    def __init__(self, model: type[ModelType]):
         self.model = model
-        self.session = session
 
-    async def get_by_id(self, id: UUID) -> ModelType | None:
+    async def get_by_id(self, session: AsyncSession, id: UUID) -> ModelType | None:
         """Get entity by ID."""
-        result = await self.session.execute(
+        result = await session.execute(
             select(self.model).where(self.model.id == id)
         )
         return result.scalar_one_or_none()
 
-    async def create(self, entity: ModelType) -> ModelType:
+    async def create(self, session: AsyncSession, entity: ModelType) -> ModelType:
         """Create new entity."""
-        self.session.add(entity)
-        await self.session.flush()
-        await self.session.refresh(entity)
+        session.add(entity)
+        await session.flush()
+        await session.refresh(entity)
         return entity
 
-    async def update(self, entity: ModelType) -> ModelType:
+    async def update(self, session: AsyncSession, entity: ModelType) -> ModelType:
         """Update existing entity."""
-        await self.session.flush()
-        await self.session.refresh(entity)
+        await session.flush()
+        await session.refresh(entity)
         return entity
 
-    async def delete(self, entity: ModelType) -> None:
+    async def delete(self, session: AsyncSession, entity: ModelType) -> None:
         """Delete entity."""
-        await self.session.delete(entity)
-        await self.session.flush()
+        await session.delete(entity)
+        await session.flush()
 
-    async def commit(self) -> None:
+    async def commit(self, session: AsyncSession) -> None:
         """Commit transaction."""
-        await self.session.commit()
+        await session.commit()
 
-    async def rollback(self) -> None:
+    async def rollback(self, session: AsyncSession) -> None:
         """Rollback transaction."""
-        await self.session.rollback()
+        await session.rollback()

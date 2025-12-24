@@ -48,8 +48,9 @@ services:
       POSTGRES_DB: datasearch_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
     ports:
-      - "5432:5432"
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d datasearch_db"]
       interval: 5s

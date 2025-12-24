@@ -52,7 +52,7 @@ class DatabaseManager:
             self._session_factory = None
             self._logger.info("Database connection closed.")
 
-    async def get_session_generator(
+    async def get_session(
         self
     ) -> AsyncGenerator[AsyncSession, None]:
         """Yields an asynchronous database session."""

@@ -1,6 +1,5 @@
 import asyncio
 from typing import AsyncGenerator
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from lib.core.container import container
 from lib.schemas.dataset import KaggleEnrichedDatasetDTO
@@ -17,6 +16,22 @@ class KaggleAPIClient:
         self._logger = container.logger
         self.throttle_delay = throttle_delay
         self.api = initialize_kaggle_api()
+
+    async def fetch_single_dataset(
+        self, dataset_ref: str
+    ) -> KaggleEnrichedDatasetDTO | None:
+        """Fetches single dataset with full metadata."""
+        try:
+            dataset_obj = await self._search_dataset_by_ref(dataset_ref)
+
+            if dataset_obj:
+                return self._convert_to_dto(dataset_obj)
+
+            return None
+
+        except Exception as e:
+            self._logger.error(f"Failed to fetch {dataset_ref}: {e}")
+            return None
 
     async def fetch_latest_datasets(
         self,
@@ -49,21 +64,23 @@ class KaggleAPIClient:
             if len(datasets_page) < APIConsts.DEFAULT_PAGE_SIZE:
                 break
 
-    async def fetch_single_dataset(
-        self, dataset_ref: str
-    ) -> KaggleEnrichedDatasetDTO | None:
-        """Fetches single dataset with full metadata."""
+    async def _search_dataset_by_ref(self, dataset_ref: str) -> object | None:
+        """Searches for a dataset by exact ref match."""
         loop = asyncio.get_event_loop()
 
-        try:
-            dataset_data = await self._fetch_with_retry(
-                loop=loop, dataset_ref=dataset_ref
-            )
-            return KaggleEnrichedDatasetDTO(**dataset_data) if dataset_data else None
+        dataset_list = await loop.run_in_executor(
+            None,
+            lambda: self.api.dataset_list(search=dataset_ref, page=1)
+        )
 
-        except Exception as e:
-            self._logger.error(f"Failed to fetch {dataset_ref}: {e}")
+        if not dataset_list:
             return None
+
+        for dataset in dataset_list:
+            if dataset.ref == dataset_ref:
+                return dataset
+
+        return None
 
     async def _fetch_dataset_list_page(self, page: int, sort_by: str) -> list[dict]:
         """Fetches single page of dataset list."""
@@ -94,89 +111,56 @@ class KaggleAPIClient:
             if len(batch) >= max_count:
                 break
 
-            dto = await self.fetch_single_dataset(dataset_ref=dataset.ref)
-
-            if dto:
+            try:
+                dto = self._convert_to_dto(dataset)
                 batch.append(dto)
+            except Exception as e:
+                self._logger.warning(f"Error converting {dataset.ref}: {e}")
 
             await asyncio.sleep(self.throttle_delay)
 
         return batch
 
-    @retry(
-        stop=stop_after_attempt(APIConsts.MAX_RETRY_ATTEMPTS),
-        wait=wait_exponential(
-            multiplier=1,
-            min=APIConsts.RETRY_MIN_WAIT,
-            max=APIConsts.RETRY_MAX_WAIT
-        ),
-        reraise=True
-    )
-    async def _fetch_with_retry(
-        self, loop: asyncio.AbstractEventLoop, dataset_ref: str
-    ) -> dict | None:
-        """Fetches dataset with retry logic."""
-        try:
-            dataset_obj = await loop.run_in_executor(
-                None,
-                lambda: self.api.dataset_view(dataset_ref)
-            )
+    def _convert_to_dto(self, dataset_obj: object) -> KaggleEnrichedDatasetDTO:
+        """Converts Kaggle API dataset object to DTO."""
+        files_list = self._extract_files_metadata(dataset_obj)
 
-            dataset_dict = self._build_dataset_dict(dataset_obj=dataset_obj)
-            files_list = await self._fetch_dataset_files(
-                loop=loop, dataset_ref=dataset_ref
-            )
-            dataset_dict['data'] = files_list
+        return KaggleEnrichedDatasetDTO(
+            ref=dataset_obj.ref,
+            title=dataset_obj.title,
+            subtitle=getattr(dataset_obj, 'subtitle', None),
+            creatorName=getattr(dataset_obj, 'creator_name', None),
+            totalBytes=getattr(dataset_obj, 'total_bytes', 0),
+            url=dataset_obj.url,
+            createdDate=None,
+            lastUpdated=getattr(dataset_obj, 'last_updated', None),
+            downloadCount=getattr(dataset_obj, 'download_count', 0),
+            voteCount=getattr(dataset_obj, 'vote_count', 0),
+            viewCount=getattr(dataset_obj, 'view_count', 0),
+            licenseName=getattr(dataset_obj, 'license_name', None),
+            description=getattr(dataset_obj, 'description', None),
+            data=files_list
+        )
 
-            return dataset_dict
-
-        except Exception as e:
-            self._logger.warning(f"Error fetching {dataset_ref}: {e}")
-            return None
-
-    def _build_dataset_dict(self, dataset_obj: object) -> dict:
-        """Builds dataset dict from Kaggle API object."""
-        return {
-            'ref': dataset_obj.ref,
-            'title': dataset_obj.title,
-            'subtitle': getattr(dataset_obj, 'subtitle', None),
-            'creatorName': dataset_obj.creatorName,
-            'totalBytes': dataset_obj.totalBytes,
-            'url': dataset_obj.url,
-            'createdDate': dataset_obj.createdDate,
-            'lastUpdated': dataset_obj.lastUpdated,
-            'downloadCount': dataset_obj.downloadCount,
-            'voteCount': dataset_obj.voteCount,
-            'viewCount': dataset_obj.viewCount,
-            'licenseName': getattr(dataset_obj, 'licenseName', None),
-            'description': getattr(dataset_obj, 'description', None),
-        }
-
-    async def _fetch_dataset_files(
-        self, loop: asyncio.AbstractEventLoop, dataset_ref: str
-    ) -> list[dict]:
-        """Fetches dataset files metadata."""
-        try:
-            files = await loop.run_in_executor(
-                None,
-                lambda: self.api.dataset_list_files(dataset_ref).files
-            )
-
-            return [self._build_file_dict(file=file) for file in files]
-
-        except Exception as e:
-            self._logger.debug(f"Could not fetch files for {dataset_ref}: {e}")
+    def _extract_files_metadata(self, dataset_obj: object) -> list[dict]:
+        """Extracts file metadata from dataset object."""
+        if not hasattr(dataset_obj, 'files') or not dataset_obj.files:
             return []
 
-    def _build_file_dict(self, file: object) -> dict:
-        """Builds file dict from Kaggle API file object."""
-        file_dict = {
-            'name': file.name,
-            'size': file.totalBytes,
-            'creationDate': getattr(file, 'creationDate', None),
-        }
+        files_list = []
+        for file in dataset_obj.files:
+            file_dict = {
+                'name': getattr(file, 'name', 'unknown'),
+                'size': getattr(file, 'total_bytes', 0),
+                'creationDate': getattr(file, 'creation_date', None),
+            }
 
-        if hasattr(file, 'columns') and file.columns:
-            file_dict['columns'] = [col.name for col in file.columns]
+            if hasattr(file, 'columns') and file.columns:
+                file_dict['columns'] = [
+                    col.name if hasattr(col, 'name') else str(col)
+                    for col in file.columns
+                ]
 
-        return file_dict
+            files_list.append(file_dict)
+
+        return files_list

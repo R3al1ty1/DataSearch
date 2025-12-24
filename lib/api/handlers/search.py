@@ -15,7 +15,7 @@ router = APIRouter(tags=["Search"])
 @router.post("/search", response_model=SearchResponse)
 async def search_datasets(
     body: SearchRequest,
-    db: AsyncSession = Depends(container.db.get_session_generator),
+    db: AsyncSession = Depends(container.db.get_session),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     """Semantic search for datasets using RAG-system."""

@@ -16,11 +16,12 @@ from lib.schemas.stats import EnrichmentStageStats, ErrorStats
 class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
     """Repository for enrichment log operations."""
 
-    def __init__(self, session: AsyncSession):
-        super().__init__(DatasetEnrichmentLog, session)
+    def __init__(self):
+        super().__init__(DatasetEnrichmentLog)
 
     async def log_enrichment(
         self,
+        session: AsyncSession,
         dataset_id: UUID,
         stage: EnrichmentStage,
         result: EnrichmentResult,
@@ -43,13 +44,13 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
             worker_id=worker_id,
             task_id=task_id
         )
-        return await self.create(log)
+        return await self.create(session, log)
 
     async def get_logs_by_dataset(
-        self, dataset_id: UUID, limit: int = 50
+        self, session: AsyncSession, dataset_id: UUID, limit: int = 50
     ) -> list[DatasetEnrichmentLog]:
         """Get enrichment logs for specific dataset."""
-        result = await self.session.execute(
+        result = await session.execute(
             select(DatasetEnrichmentLog)
             .where(DatasetEnrichmentLog.dataset_id == dataset_id)
             .order_by(DatasetEnrichmentLog.created_at.desc())
@@ -59,6 +60,7 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
 
     async def get_failed_logs(
         self,
+        session: AsyncSession,
         since: datetime | None = None,
         limit: int = 100
     ) -> list[DatasetEnrichmentLog]:
@@ -74,16 +76,16 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
             DatasetEnrichmentLog.created_at.desc()
         ).limit(limit)
 
-        result = await self.session.execute(query)
+        result = await session.execute(query)
         return list(result.scalars().all())
 
     async def get_stats_by_stage_and_result(
-        self, hours: int = 24
+        self, session: AsyncSession, hours: int = 24
     ) -> list[EnrichmentStageStats]:
         """Get enrichment statistics grouped by stage and result."""
         since = datetime.utcnow() - timedelta(hours=hours)
 
-        result = await self.session.execute(
+        result = await session.execute(
             select(
                 DatasetEnrichmentLog.stage,
                 DatasetEnrichmentLog.result,
@@ -112,12 +114,12 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         ]
 
     async def get_top_errors(
-        self, hours: int = 168, limit: int = 10
+        self, session: AsyncSession, hours: int = 168, limit: int = 10
     ) -> list[ErrorStats]:
         """Get top error types in the last N hours."""
         since = datetime.utcnow() - timedelta(hours=hours)
 
-        result = await self.session.execute(
+        result = await session.execute(
             select(
                 DatasetEnrichmentLog.error_type,
                 func.count().label('error_count')
@@ -145,10 +147,10 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         ]
 
     async def count_attempts_by_dataset(
-        self, dataset_id: UUID, stage: EnrichmentStage
+        self, session: AsyncSession, dataset_id: UUID, stage: EnrichmentStage
     ) -> int:
         """Count enrichment attempts for dataset and stage."""
-        result = await self.session.execute(
+        result = await session.execute(
             select(func.count(DatasetEnrichmentLog.id)).where(
                 and_(
                     DatasetEnrichmentLog.dataset_id == dataset_id,
