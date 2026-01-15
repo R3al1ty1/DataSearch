@@ -1,14 +1,8 @@
-"""
-Service for processing dataset embeddings in batches.
-
-This module handles the business logic for generating embeddings for datasets,
-separating concerns from Celery task orchestration.
-"""
-import logging
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lib.core.container import container
 from lib.repositories.dataset import DatasetRepository
 from lib.services.ml.embedder import EmbeddingService
 
@@ -19,26 +13,16 @@ class EmbeddingProcessor:
     def __init__(
         self,
         dataset_repo: DatasetRepository,
-        embedder: EmbeddingService,
-        logger: logging.Logger
+        embedder: EmbeddingService
     ):
         self.dataset_repo = dataset_repo
         self.embedder = embedder
-        self.logger = logger
+        self.logger = container.logger
 
     async def process_batch(
         self, session: AsyncSession, batch_size: int = 100
     ) -> tuple[int, int]:
-        """
-        Process a batch of datasets to generate embeddings.
-
-        Args:
-            session: Database session
-            batch_size: Maximum number of datasets to process
-
-        Returns:
-            Tuple of (processed_count, failed_count)
-        """
+        """Processes a batch of datasets to generate embeddings."""
         datasets = await self.dataset_repo.get_for_embedding_generation(
             session, limit=batch_size
         )
@@ -88,7 +72,7 @@ class EmbeddingProcessor:
         dataset_ids: list[UUID],
         embeddings: list[list[float]]
     ) -> tuple[int, int]:
-        """Save generated embeddings to database."""
+        """Saves generated embeddings to database."""
         processed = 0
         failed = 0
 

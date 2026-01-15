@@ -1,4 +1,3 @@
-from typing import List, Union
 import logging
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -10,11 +9,15 @@ class EmbeddingService:
     Model is loaded once at initialization and reused.
     """
 
-    def __init__(self, model_name: str | None = None, logger: logging.Logger | None = None):
+    def __init__(
+        self,
+        logger: logging.Logger,
+        model_name: str | None = None
+    ):
         self.model_name = model_name or "all-MiniLM-L6-v2"
         self._model: SentenceTransformer | None = None
         self._embedding_dim: int | None = None
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger
 
     @property
     def model(self) -> SentenceTransformer:
@@ -30,7 +33,7 @@ class EmbeddingService:
 
     def encode(
         self,
-        texts: Union[str, List[str]],
+        texts: str | list[str],
         batch_size: int = 32,
         show_progress: bool = False,
         normalize: bool = True
@@ -86,16 +89,7 @@ class EmbeddingService:
         datasets: list[tuple[str, str | None]],
         batch_size: int = 32
     ) -> list[list[float]]:
-        """
-        Batch encode multiple datasets.
-
-        Args:
-            datasets: List of (title, description) tuples
-            batch_size: Encoding batch size
-
-        Returns:
-            List of embedding vectors as Python lists
-        """
+        """Batch encodes multiple datasets."""
         if not datasets:
             return []
 

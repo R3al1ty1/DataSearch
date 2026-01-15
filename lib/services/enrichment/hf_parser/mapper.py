@@ -7,7 +7,7 @@ def map_hf_to_dataset(dto: HFDatasetDTO) -> Dataset:
     Convert HuggingFace DTO to Dataset model.
 
     HuggingFace provides enriched data by default.
-    Status: PENDING (needs embedding generation).
+    Status: ENRICHED (needs embedding generation).
     """
     file_formats = _extract_file_formats_from_tags(dto.tags)
     task_categories = _extract_task_categories(dto.tags)
@@ -32,7 +32,7 @@ def map_hf_to_dataset(dto: HFDatasetDTO) -> Dataset:
         embedding=None,
         static_score=None,
         is_active=True,
-        enrichment_status=EnrichmentStatus.PENDING.value,
+        enrichment_status=EnrichmentStatus.ENRICHED.value,
         enrichment_attempts=0,
         last_enrichment_error=None,
         last_enriched_at=None,

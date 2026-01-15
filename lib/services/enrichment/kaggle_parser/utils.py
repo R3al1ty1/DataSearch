@@ -41,8 +41,7 @@ def _patch_kaggle_client():
     original_init = KaggleClient.__init__
 
     def patched_init(self, *args, **kwargs):
-        if 'user_agent' not in kwargs or kwargs.get('user_agent') is None:
-            kwargs['user_agent'] = 'DataSearch/1.0'
+        kwargs.pop('user_agent', None)
         original_init(self, *args, **kwargs)
 
     KaggleClient.__init__ = patched_init

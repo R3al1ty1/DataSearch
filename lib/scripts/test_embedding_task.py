@@ -5,12 +5,6 @@ Usage:
     uv run python lib/scripts/test_embedding_task.py
 """
 import asyncio
-import sys
-from pathlib import Path
-
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from lib.core.container import container
 
 
