@@ -12,7 +12,7 @@ router = APIRouter(tags=["Tracking"])
 @router.get("/visit/{dataset_id}", response_class=RedirectResponse)
 async def visit_dataset(
     dataset_id: UUID,
-    db: AsyncSession = Depends(container.db.get_session_generator),
+    db: AsyncSession = Depends(container.db.get_session),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     """Log the click and redirect user to the original source."""

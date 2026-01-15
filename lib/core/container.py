@@ -1,52 +1,98 @@
 import logging
+from functools import cached_property
 
 from lib.core.config import Settings
 from lib.core.database import DatabaseManager
 from lib.core.logger import LoggerManager
 from lib.services.ml.embedder import EmbeddingService
-from lib.services.enrichment.client_hf import HuggingFaceClient
-from lib.services.enrichment.kaggle_parser import KaggleClient
 
 
 class AppContainer:
-    """Dependency Injection root container."""
-    def __init__(self):
-        self._settings = Settings()
-        self._logger = LoggerManager()
-
-        self._db_manager = DatabaseManager(
-            dsn=self._settings.SQLALCHEMY_DATABASE_URI,
-            environment=self._settings.ENVIRONMENT,
-            logger=self._logger
-        )
-
-        self._embedding_service = EmbeddingService()
-        self._hf_client = HuggingFaceClient()
-        self._kaggle_client = KaggleClient()
-
-    @property
-    def settings(self) -> Settings:
-        return self._settings
+    """Dependency Injection root container with lazy initialization."""
 
     @property
     def logger(self) -> logging.Logger:
-        return self._logger
+        """Application logger."""
+        return self.logger_manager.get_logger()
 
-    @property
+    @cached_property
+    def settings(self) -> Settings:
+        """Application settings."""
+        return Settings()
+
+    @cached_property
+    def logger_manager(self) -> LoggerManager:
+        """Logger manager."""
+        return LoggerManager()
+
+    @cached_property
     def db(self) -> DatabaseManager:
-        return self._db_manager
+        """Database manager."""
+        return DatabaseManager(
+            dsn=self.settings.SQLALCHEMY_DATABASE_URI,
+            environment=self.settings.ENVIRONMENT,
+            logger=self.logger
+        )
 
-    @property
+    @cached_property
     def embedder(self) -> EmbeddingService:
-        return self._embedding_service
+        """ML embedding service."""
+        return EmbeddingService(
+            model_name=self.settings.EMBEDDING_MODEL,
+            logger=self.logger
+        )
 
-    @property
-    def hf_client(self) -> HuggingFaceClient:
-        return self._hf_client
+    @cached_property
+    def hf_client(self):
+        """HuggingFace API client."""
+        from lib.services.enrichment.hf_parser import HuggingFaceClient
+        return HuggingFaceClient()
 
-    @property
-    def kaggle_client(self) -> KaggleClient:
-        return self._kaggle_client
+    @cached_property
+    def kaggle_client(self):
+        """Kaggle API client."""
+        from lib.services.enrichment.kaggle_parser import KaggleClient
+        return KaggleClient()
+
+    @cached_property
+    def dataset_repo(self):
+        """Dataset repository."""
+        from lib.repositories import DatasetRepository
+        return DatasetRepository()
+
+    @cached_property
+    def enrichment_log_repo(self):
+        """Enrichment log repository."""
+        from lib.repositories import EnrichmentLogRepository
+        return EnrichmentLogRepository()
+
+    @cached_property
+    def hf_processor(self):
+        """HuggingFace processor."""
+        from lib.services.enrichment.hf_parser.processor import HFProcessor
+        return HFProcessor(
+            hf_client=self.hf_client,
+            dataset_repo=self.dataset_repo
+        )
+
+    @cached_property
+    def kaggle_processor(self):
+        """Kaggle processor."""
+        from lib.services.enrichment.kaggle_parser.processor import KaggleProcessor
+        return KaggleProcessor(
+            kaggle_client=self.kaggle_client,
+            dataset_repo=self.dataset_repo,
+            log_repo=self.enrichment_log_repo
+        )
+
+    @cached_property
+    def embedding_processor(self):
+        """Embedding processor."""
+        from lib.services.ml.embedding_processor import EmbeddingProcessor
+        return EmbeddingProcessor(
+            dataset_repo=self.dataset_repo,
+            embedder=self.embedder
+        )
 
 
 container = AppContainer()

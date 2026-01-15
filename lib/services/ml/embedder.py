@@ -1,8 +1,6 @@
-from typing import List, Union
+import logging
 import numpy as np
 from sentence_transformers import SentenceTransformer
-
-from lib.core.container import container
 
 
 class EmbeddingService:
@@ -11,11 +9,15 @@ class EmbeddingService:
     Model is loaded once at initialization and reused.
     """
 
-    def __init__(self, model_name: str | None = None):
-        self.model_name = model_name or container.settings.EMBEDDING_MODEL
+    def __init__(
+        self,
+        logger: logging.Logger,
+        model_name: str | None = None
+    ):
+        self.model_name = model_name or "all-MiniLM-L6-v2"
         self._model: SentenceTransformer | None = None
         self._embedding_dim: int | None = None
-        self._logger = container.logger
+        self._logger = logger
 
     @property
     def model(self) -> SentenceTransformer:
@@ -31,7 +33,7 @@ class EmbeddingService:
 
     def encode(
         self,
-        texts: Union[str, List[str]],
+        texts: str | list[str],
         batch_size: int = 32,
         show_progress: bool = False,
         normalize: bool = True
@@ -81,6 +83,28 @@ class EmbeddingService:
 
         combined_text = " ".join(text_parts)
         return self.encode(combined_text)
+
+    def batch_encode_datasets(
+        self,
+        datasets: list[tuple[str, str | None]],
+        batch_size: int = 32
+    ) -> list[list[float]]:
+        """Batch encodes multiple datasets."""
+        if not datasets:
+            return []
+
+        combined_texts = [
+            f"{title} {title} {desc or ''}"
+            for title, desc in datasets
+        ]
+
+        embeddings = self.encode(
+            combined_texts,
+            batch_size=batch_size,
+            show_progress=False
+        )
+
+        return [emb.tolist() for emb in embeddings]
 
     def _load_model(self) -> None:
         """Lazy model loading on first use."""

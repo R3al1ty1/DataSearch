@@ -5,11 +5,17 @@ from typing import Optional
 from sqlalchemy import (
     String, Text, Boolean, Float, DateTime, Index, ARRAY, BIGINT
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, ENUM as PG_ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 from pgvector.sqlalchemy import Vector
 
 from lib.models.base import Base, TimestampMixin, UUIDMixin
+
+
+class DatasetFieldsExclude:
+    """Fields to exclude during upsert operations."""
+    ON_INSERT = {'id', 'created_at', 'updated_at'}
+    ON_UPDATE = {'id', 'created_at', 'updated_at', 'enrichment_attempts'}
 
 
 class EnrichmentStatus(str, Enum):
@@ -130,7 +136,11 @@ class Dataset(Base, UUIDMixin, TimestampMixin):
     )
 
     enrichment_status: Mapped[str] = mapped_column(
-        String(20),
+        PG_ENUM(
+            'minimal', 'pending', 'enriching', 'enriched', 'failed', 'skipped',
+            name='enrichment_status_enum',
+            create_type=False
+        ),
         nullable=False,
         default=EnrichmentStatus.MINIMAL.value,
         server_default="minimal",

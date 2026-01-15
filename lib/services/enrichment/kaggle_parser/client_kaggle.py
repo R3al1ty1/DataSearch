@@ -98,6 +98,8 @@ class KaggleClient:
 
         if csv_path.exists():
             stats['csv_size_mb'] = csv_path.stat().st_size / (1024 * 1024)
-            stats['csv_modified'] = datetime.fromtimestamp(csv_path.stat().st_mtime)
+            stats['csv_modified'] = datetime.fromtimestamp(
+                csv_path.stat().st_mtime
+            )
 
         return stats
