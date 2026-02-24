@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import String, Text, Integer, ForeignKey, Index
@@ -50,27 +49,27 @@ class DatasetEnrichmentLog(Base, UUIDMixin, TimestampMixin):
         nullable=False
     )
 
-    error_message: Mapped[Optional[str]] = mapped_column(
+    error_message: Mapped[str | None] = mapped_column(
         Text,
         nullable=True
     )
 
-    error_type: Mapped[Optional[str]] = mapped_column(
+    error_type: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True
     )
 
-    duration_ms: Mapped[Optional[int]] = mapped_column(
+    duration_ms: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True
     )
 
-    worker_id: Mapped[Optional[str]] = mapped_column(
+    worker_id: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True
     )
 
-    task_id: Mapped[Optional[str]] = mapped_column(
+    task_id: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True
     )

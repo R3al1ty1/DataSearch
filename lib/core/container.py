@@ -94,5 +94,71 @@ class AppContainer:
             embedder=self.embedder
         )
 
+    @cached_property
+    def redis_auth(self):
+        """Redis manager for authentication."""
+        from lib.core.redis_auth import RedisAuthManager
+        return RedisAuthManager(
+            redis_url=self.settings.REDIS_AUTH_URL,
+            logger=self.logger
+        )
+
+    @cached_property
+    def user_repo(self):
+        """User repository."""
+        from lib.repositories import UserRepository
+        return UserRepository()
+
+    @cached_property
+    def security_event_repo(self):
+        """Security event repository."""
+        from lib.repositories import SecurityEventRepository
+        return SecurityEventRepository()
+
+    @cached_property
+    def token_service(self):
+        """Token service."""
+        from lib.services.auth.token_service import TokenService
+        return TokenService(
+            redis_manager=self.redis_auth,
+            settings=self.settings,
+            logger=self.logger
+        )
+
+    @cached_property
+    def rate_limit_service(self):
+        """Rate limit service."""
+        from lib.services.auth.rate_limit_service import RateLimitService
+        return RateLimitService(
+            redis_manager=self.redis_auth,
+            logger=self.logger
+        )
+
+    @cached_property
+    def auth_service(self):
+        """Auth service."""
+        from lib.services.auth.auth_service import AuthService
+        return AuthService(
+            user_repo=self.user_repo,
+            security_event_repo=self.security_event_repo,
+            token_service=self.token_service,
+            rate_limit_service=self.rate_limit_service,
+            settings=self.settings,
+            logger=self.logger
+        )
+
+    @cached_property
+    def oauth_service(self):
+        """OAuth service."""
+        from lib.services.auth.oauth_service import OAuthService
+        return OAuthService(
+            user_repo=self.user_repo,
+            security_event_repo=self.security_event_repo,
+            token_service=self.token_service,
+            redis_manager=self.redis_auth,
+            settings=self.settings,
+            logger=self.logger
+        )
+
 
 container = AppContainer()

@@ -1,6 +1,5 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from sqlalchemy import (
     String, Text, Boolean, Float, DateTime, Index, ARRAY, BIGINT
@@ -53,36 +52,36 @@ class Dataset(Base, UUIDMixin, TimestampMixin):
         nullable=False
     )
 
-    description: Mapped[Optional[str]] = mapped_column(
+    description: Mapped[str | None] = mapped_column(
         Text,
         nullable=True
     )
 
-    tags: Mapped[Optional[list[str]]] = mapped_column(
+    tags: Mapped[list[str] | None] = mapped_column(
         ARRAY(String), nullable=True
     )
 
-    license: Mapped[Optional[str]] = mapped_column(
+    license: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True
     )
 
-    file_formats: Mapped[Optional[list[str]]] = mapped_column(
+    file_formats: Mapped[list[str] | None] = mapped_column(
         ARRAY(String),
         nullable=True
     )
 
-    total_size_bytes: Mapped[Optional[int]] = mapped_column(
+    total_size_bytes: Mapped[int | None] = mapped_column(
         BIGINT,
         nullable=True
     )
 
-    column_names: Mapped[Optional[list[str]]] = mapped_column(
+    column_names: Mapped[list[str] | None] = mapped_column(
         ARRAY(Text),
         nullable=True
     )
 
-    row_count: Mapped[Optional[int]] = mapped_column(
+    row_count: Mapped[int | None] = mapped_column(
         BIGINT,
         nullable=True
     )
@@ -108,21 +107,21 @@ class Dataset(Base, UUIDMixin, TimestampMixin):
         server_default="0"
     )
 
-    source_created_at: Mapped[Optional[datetime]] = mapped_column(
+    source_created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
-    source_updated_at: Mapped[Optional[datetime]] = mapped_column(
+    source_updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True
     )
 
-    embedding: Mapped[Optional[list[float]]] = mapped_column(
+    embedding: Mapped[list[float] | None] = mapped_column(
         Vector(384),
         nullable=True
     )
 
-    static_score: Mapped[Optional[float]] = mapped_column(
+    static_score: Mapped[float | None] = mapped_column(
         Float,
         nullable=True
     )
@@ -153,22 +152,22 @@ class Dataset(Base, UUIDMixin, TimestampMixin):
         server_default="0"
     )
 
-    last_enrichment_error: Mapped[Optional[str]] = mapped_column(
+    last_enrichment_error: Mapped[str | None] = mapped_column(
         Text,
         nullable=True
     )
 
-    last_enriched_at: Mapped[Optional[datetime]] = mapped_column(
+    last_enriched_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True
     )
 
-    last_checked_at: Mapped[Optional[datetime]] = mapped_column(
+    last_checked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True
     )
 
-    source_meta: Mapped[Optional[dict]] = mapped_column(
+    source_meta: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True
     )

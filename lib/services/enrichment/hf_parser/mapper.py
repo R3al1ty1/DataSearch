@@ -1,3 +1,4 @@
+from lib.core.constants import ExternalAPIUrls, HuggingFaceTagPrefixes
 from lib.models.dataset import Dataset, EnrichmentStatus
 from lib.schemas.dataset import HFDatasetDTO
 
@@ -16,7 +17,7 @@ def map_hf_to_dataset(dto: HFDatasetDTO) -> Dataset:
         source_name='huggingface',
         external_id=dto.id,
         title=dto.title,
-        url=f"https://huggingface.co/datasets/{dto.id}",
+        url=f"{ExternalAPIUrls.HUGGINGFACE_DATASETS}/{dto.id}",
         description=dto.description,
         tags=task_categories if task_categories else None,
         license=dto.license,
@@ -49,12 +50,11 @@ def map_hf_to_dataset(dto: HFDatasetDTO) -> Dataset:
 
 def _extract_file_formats_from_tags(tags: list[str]) -> list[str]:
     """Extract file formats from HuggingFace tags."""
-    format_prefixes = ['parquet', 'csv', 'json', 'text', 'arrow', 'webdataset']
     formats = []
 
     for tag in tags:
         tag_lower = tag.lower()
-        for fmt in format_prefixes:
+        for fmt in HuggingFaceTagPrefixes.FILE_FORMATS:
             if fmt in tag_lower:
                 formats.append(fmt)
                 break
@@ -66,7 +66,7 @@ def _extract_task_categories(tags: list[str]) -> list[str]:
     """Extract task categories from tags."""
     task_tags = [
         tag for tag in tags
-        if tag.startswith('task_categories:') or tag.startswith('task_ids:')
+        if any(tag.startswith(prefix) for prefix in HuggingFaceTagPrefixes.TASK_CATEGORIES)
     ]
 
     categories = []

@@ -1,24 +1,23 @@
 from uuid import UUID
 from datetime import datetime, timezone
-from typing import List, Optional
 from pydantic import BaseModel, Field, HttpUrl, ConfigDict
 
 
 class HFDatasetDTO(BaseModel):
     """DTO for HuggingFace API response."""
     id: str = Field(..., description="Repo ID")
-    sha: Optional[str] = None
+    sha: str | None = None
 
-    last_modified: Optional[datetime] = Field(default=None, alias="lastModified")
-    created_at: Optional[datetime] = Field(default=None, alias="createdAt")
+    last_modified: datetime | None = Field(default=None, alias="lastModified")
+    created_at: datetime | None = Field(default=None, alias="createdAt")
 
     downloads: int = 0
     likes: int = 0
-    tags: List[str] = Field(default_factory=list)
-    description: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    description: str | None = None
 
-    card_data: Optional[dict] = Field(default=None, alias="cardData")
-    dataset_info: Optional[dict] = Field(default=None, alias="datasetInfo")
+    card_data: dict | None = Field(default=None, alias="cardData")
+    dataset_info: dict | None = Field(default=None, alias="datasetInfo")
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
@@ -29,7 +28,7 @@ class HFDatasetDTO(BaseModel):
         return self.id.split("/")[-1]
 
     @property
-    def license(self) -> Optional[str]:
+    def license(self) -> str | None:
         if self.card_data and "license" in self.card_data:
             lic = self.card_data["license"]
             if isinstance(lic, list) and lic:
@@ -53,15 +52,15 @@ class HFDatasetDTO(BaseModel):
 class KaggleMetaDatasetDTO(BaseModel):
     """DTO for Meta Kaggle CSV (Datasets.csv) - minimal metadata."""
     Id: int = Field(..., description="Kaggle dataset ID")
-    CreatorUserId: Optional[int] = None
-    OwnerUserId: Optional[int] = None
-    OwnerOrganizationId: Optional[int] = None
-    CurrentDatasetVersionId: Optional[int] = None
-    CurrentDatasourceVersionId: Optional[int] = None
-    ForumId: Optional[int] = None
-    Type: Optional[str] = None
-    CreationDate: Optional[datetime] = None
-    LastActivityDate: Optional[datetime] = None
+    CreatorUserId: int | None = None
+    OwnerUserId: int | None = None
+    OwnerOrganizationId: int | None = None
+    CurrentDatasetVersionId: int | None = None
+    CurrentDatasourceVersionId: int | None = None
+    ForumId: int | None = None
+    Type: str | None = None
+    CreationDate: datetime | None = None
+    LastActivityDate: datetime | None = None
     TotalViews: int = 0
     TotalDownloads: int = 0
     TotalVotes: int = 0
@@ -87,18 +86,18 @@ class KaggleEnrichedDatasetDTO(BaseModel):
     """DTO for enriched Kaggle dataset from API (detailed metadata)."""
     ref: str = Field(..., description="Dataset reference (owner/dataset-name)")
     title: str
-    subtitle: Optional[str] = None
-    creatorName: Optional[str] = None
+    subtitle: str | None = None
+    creatorName: str | None = None
     totalBytes: int = 0
     url: str
-    createdDate: Optional[datetime] = None
-    lastUpdated: Optional[datetime] = None
+    createdDate: datetime | None = None
+    lastUpdated: datetime | None = None
     downloadCount: int = 0
     voteCount: int = 0
     viewCount: int = 0
-    licenseName: Optional[str] = None
-    description: Optional[str] = None
-    data: Optional[List[dict]] = Field(default_factory=list, description="Dataset files info")
+    licenseName: str | None = None
+    description: str | None = None
+    data: list[dict] | None = Field(default_factory=list, description="Dataset files info")
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
@@ -108,7 +107,7 @@ class KaggleEnrichedDatasetDTO(BaseModel):
         return self.ref
 
     @property
-    def column_names(self) -> List[str]:
+    def column_names(self) -> list[str]:
         """Extract column names from dataset files metadata."""
         columns = []
         if self.data:
@@ -138,7 +137,7 @@ class DatasetItem(BaseModel):
     source_name: str
     external_id: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     url: HttpUrl
     score: float = Field(..., description="Relevance score (0.0 - 1.0)")
     created_at: datetime
@@ -147,6 +146,6 @@ class DatasetItem(BaseModel):
 
 
 class SearchResponse(BaseModel):
-    items: List[DatasetItem]
+    items: list[DatasetItem]
     total: int
     execution_time_ms: float

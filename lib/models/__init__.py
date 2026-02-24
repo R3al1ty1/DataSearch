@@ -9,6 +9,8 @@ from lib.models.enrichment_log import (
     EnrichmentStage,
     EnrichmentResult
 )
+from lib.models.user import User
+from lib.models.security_event import SecurityEvent
 
 __all__ = [
     "Base",
@@ -19,5 +21,7 @@ __all__ = [
     "DatasetFieldsExclude",
     "DatasetEnrichmentLog",
     "EnrichmentStage",
-    "EnrichmentResult"
+    "EnrichmentResult",
+    "User",
+    "SecurityEvent"
 ]

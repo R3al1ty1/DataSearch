@@ -1,10 +1,13 @@
 import logging
+from typing import Annotated
 from uuid import UUID
 from fastapi import APIRouter, Depends
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lib.core.container import container
+from lib.api.dependencies.auth import get_current_active_user
+from lib.models.user import User
 
 router = APIRouter(tags=["Tracking"])
 
@@ -12,6 +15,7 @@ router = APIRouter(tags=["Tracking"])
 @router.get("/visit/{dataset_id}", response_class=RedirectResponse)
 async def visit_dataset(
     dataset_id: UUID,
+    current_user: Annotated[User, Depends(get_current_active_user)],
     db: AsyncSession = Depends(container.db.get_session),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):

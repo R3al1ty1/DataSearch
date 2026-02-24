@@ -1,5 +1,6 @@
 import time
 import logging
+from typing import Annotated
 from uuid import uuid4
 from datetime import datetime
 
@@ -8,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lib.core.container import container
 from lib.schemas.dataset import SearchRequest, SearchResponse, DatasetItem
+from lib.api.dependencies.auth import get_current_active_user
+from lib.models.user import User
 
 router = APIRouter(tags=["Search"])
 
@@ -15,6 +18,7 @@ router = APIRouter(tags=["Search"])
 @router.post("/search", response_model=SearchResponse)
 async def search_datasets(
     body: SearchRequest,
+    current_user: Annotated[User, Depends(get_current_active_user)],
     db: AsyncSession = Depends(container.db.get_session),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):

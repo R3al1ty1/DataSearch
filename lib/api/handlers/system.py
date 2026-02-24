@@ -1,11 +1,15 @@
 import logging
+from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from lib.core.container import container
+from lib.core.constants import UserRole
 from lib.schemas.common import HealthResponse
+from lib.api.dependencies.auth import require_role
+from lib.models.user import User
 
 router = APIRouter(tags=["System"])
 
@@ -40,11 +44,14 @@ async def health_check(
 
 @router.post("/tasks/generate-embeddings", response_model=TaskTriggerResponse)
 async def trigger_embedding_generation(
+    current_user: Annotated[User, Depends(require_role(UserRole.ADMIN))],
     request: EmbeddingTaskRequest = EmbeddingTaskRequest(),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     """
     Trigger embedding generation task manually.
+
+    Requires admin role.
 
     This endpoint queues a Celery task to generate embeddings for datasets
     that don't have them yet (status=ENRICHED, embedding=NULL).

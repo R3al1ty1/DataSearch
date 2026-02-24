@@ -20,8 +20,12 @@ async def lifespan(app: FastAPI):
             await conn.execute(text("SELECT 1"))
 
         logger.info(f"✅ Database connected: {container.settings.POSTGRES_HOST}")
+
+        container.redis_auth.init()
+        logger.info("✅ Redis auth pool initialized")
+
     except Exception as e:
-        logger.critical(f"❌ Database connection failed: {e}")
+        logger.critical(f"❌ Startup failed: {e}")
         raise e
 
     yield
@@ -29,6 +33,7 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 Shutting down application...")
 
     await container.db.close()
+    await container.redis_auth.close()
 
 
 def create_app() -> FastAPI:
