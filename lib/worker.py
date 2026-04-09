@@ -13,6 +13,7 @@ celery_app = Celery(
         "lib.crons.cleanup",
         "lib.crons.enrichment.hf",
         "lib.crons.enrichment.kaggle",
+        "lib.crons.enrichment.static_scores",
     ]
 )
 
@@ -49,5 +50,9 @@ celery_app.conf.beat_schedule = {
         'task': 'kaggle.fetch_latest',
         'schedule': 86400.0,
         'args': (100, 'updated')
+    },
+    'compute-static-scores-daily': {
+        'task': 'search.compute_static_scores',
+        'schedule': 86400.0,
     },
 }

@@ -1,14 +1,13 @@
 from lib.models.base import Base, TimestampMixin, UUIDMixin
-from lib.models.dataset import (
-    Dataset,
-    EnrichmentStatus,
-    DatasetFieldsExclude
-)
+from lib.models.dataset import Dataset, DatasetFieldsExclude, EnrichmentStatus
 from lib.models.enrichment_log import (
     DatasetEnrichmentLog,
+    EnrichmentResult,
     EnrichmentStage,
-    EnrichmentResult
 )
+from lib.models.search_log import SearchLog
+from lib.models.security_event import SecurityEvent
+from lib.models.user import User
 
 __all__ = [
     "Base",
@@ -19,5 +18,8 @@ __all__ = [
     "DatasetFieldsExclude",
     "DatasetEnrichmentLog",
     "EnrichmentStage",
-    "EnrichmentResult"
+    "EnrichmentResult",
+    "User",
+    "SecurityEvent",
+    "SearchLog"
 ]

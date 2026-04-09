@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select, update, and_, or_, func
+from sqlalchemy import select, update, and_, or_, func, bindparam
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.inspection import inspect
@@ -11,6 +11,7 @@ from lib.models.dataset import (
     DatasetFieldsExclude
 )
 from lib.repositories.base import BaseRepository
+from lib.schemas.dataset import SearchFilters
 from lib.schemas.stats import SourceStats
 
 
@@ -257,3 +258,93 @@ class DatasetRepository(BaseRepository[Dataset]):
         }
         fields['updated_at'] = func.now()
         return fields
+
+    async def vector_search(
+        self,
+        session: AsyncSession,
+        query_embedding: list[float],
+        filters: SearchFilters,
+        limit: int,
+    ) -> list[tuple[Dataset, float]]:
+        """Performs cosine similarity ANN search via pgvector."""
+        distance_col = Dataset.embedding.cosine_distance(query_embedding).label('distance')
+
+        conditions = [
+            Dataset.is_active.is_(True),
+            Dataset.embedding.is_not(None),
+        ]
+
+        if filters.source_name:
+            conditions.append(Dataset.source_name == filters.source_name)
+        if filters.license:
+            conditions.append(Dataset.license == filters.license)
+        if filters.file_formats:
+            conditions.append(Dataset.file_formats.overlap(filters.file_formats))
+        if filters.min_row_count is not None:
+            conditions.append(Dataset.row_count >= filters.min_row_count)
+        if filters.max_size_bytes is not None:
+            conditions.append(Dataset.total_size_bytes <= filters.max_size_bytes)
+
+        stmt = (
+            select(Dataset, distance_col)
+            .where(and_(*conditions))
+            .order_by(distance_col.asc())
+            .limit(limit)
+        )
+
+        result = await session.execute(stmt)
+        return [(row[0], float(row[1])) for row in result.all()]
+
+    async def get_top_by_static_score(
+        self,
+        session: AsyncSession,
+        limit: int = 5,
+    ) -> list[Dataset]:
+        """Returns datasets with highest static_score."""
+        result = await session.execute(
+            select(Dataset)
+            .where(
+                and_(
+                    Dataset.is_active.is_(True),
+                    Dataset.embedding.is_not(None),
+                    Dataset.static_score.is_not(None),
+                )
+            )
+            .order_by(Dataset.static_score.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def get_metric_data_for_scoring(
+        self,
+        session: AsyncSession,
+    ) -> list[tuple[UUID, int, int, int]]:
+        """Returns (id, download_count, view_count, like_count) for active enriched datasets."""
+        result = await session.execute(
+            select(Dataset.id, Dataset.download_count, Dataset.view_count, Dataset.like_count)
+            .where(
+                and_(
+                    Dataset.is_active.is_(True),
+                    Dataset.enrichment_status == EnrichmentStatus.ENRICHED.value,
+                )
+            )
+        )
+        return list(result.all())
+
+    async def batch_update_static_scores(
+        self,
+        session: AsyncSession,
+        scores: dict[UUID, float],
+    ) -> int:
+        """Batch updates static_score for a set of datasets."""
+        if not scores:
+            return 0
+
+        await session.execute(
+            update(Dataset)
+            .where(Dataset.id == bindparam('bid'))
+            .values(static_score=bindparam('score')),
+            [{'bid': dataset_id, 'score': score} for dataset_id, score in scores.items()],
+        )
+        await session.flush()
+        return len(scores)
