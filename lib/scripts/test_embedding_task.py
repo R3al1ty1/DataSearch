@@ -29,7 +29,7 @@ async def check_datasets_status():
 
 async def test_embedding_processor():
     """Test EmbeddingProcessor directly."""
-    from lib.services.ml.embedding_processor import EmbeddingProcessor
+    from lib.services.datasets.ml.embedding_processor import EmbeddingProcessor
 
     print("\n=== Testing EmbeddingProcessor ===")
 

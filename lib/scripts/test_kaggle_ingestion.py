@@ -1,14 +1,12 @@
 import asyncio
 import os
 from sqlalchemy import select, func
+from lib.core.container import container
+from lib.services.datasets.models import Dataset
 
 os.environ.setdefault('POSTGRES_HOST', 'localhost')
 os.environ.setdefault('POSTGRES_PORT', '5434')
 os.environ.setdefault('POSTGRES_DB', 'datasearch_db')
-
-from lib.core.container import container
-from lib.models.dataset import Dataset
-
 
 async def test_kaggle_ingestion():
     """Test Kaggle dataset ingestion and verify what gets saved to DB."""
@@ -81,7 +79,6 @@ async def test_kaggle_ingestion():
             raise
         finally:
             await container.db.close()
-
 
 if __name__ == "__main__":
     asyncio.run(test_kaggle_ingestion())

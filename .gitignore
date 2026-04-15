@@ -1,4 +1,5 @@
 .env
+.env.test
 .python-version
 CLAUDE.md
 __pycache__/

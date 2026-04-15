@@ -1,9 +1,6 @@
 import asyncio
-
 from celery import shared_task
-
 from lib.core.container import container
-
 
 @shared_task(name="enrich.generate_embeddings")
 def generate_embeddings(batch_size: int = 100):
