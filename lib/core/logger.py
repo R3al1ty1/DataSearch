@@ -1,8 +1,6 @@
 import logging
 import sys
-
 from lib.core.constants import LogConfig
-
 
 class LoggerManager:
     """Logger manager for setting up global logging configuration."""

@@ -4,7 +4,7 @@ from functools import cached_property
 from lib.core.config import Settings
 from lib.core.database import DatabaseManager
 from lib.core.logger import LoggerManager
-from lib.services.ml.embedder import EmbeddingService
+from lib.services.datasets.ml.embedder import EmbeddingService
 
 
 class AppContainer:
@@ -45,31 +45,31 @@ class AppContainer:
     @cached_property
     def hf_client(self):
         """HuggingFace API client."""
-        from lib.services.enrichment.hf_parser import HuggingFaceClient
+        from lib.services.datasets.enrichment.hf_parser import HuggingFaceClient
         return HuggingFaceClient()
 
     @cached_property
     def kaggle_client(self):
         """Kaggle API client."""
-        from lib.services.enrichment.kaggle_parser import KaggleClient
+        from lib.services.datasets.enrichment.kaggle_parser import KaggleClient
         return KaggleClient()
 
     @cached_property
     def dataset_repo(self):
         """Dataset repository."""
-        from lib.repositories import DatasetRepository
+        from lib.auth.repository import DatasetRepository
         return DatasetRepository()
 
     @cached_property
     def enrichment_log_repo(self):
         """Enrichment log repository."""
-        from lib.repositories import EnrichmentLogRepository
+        from lib.auth.repository import EnrichmentLogRepository
         return EnrichmentLogRepository()
 
     @cached_property
     def hf_processor(self):
         """HuggingFace processor."""
-        from lib.services.enrichment.hf_parser.processor import HFProcessor
+        from lib.services.datasets.enrichment.hf_parser.processor import HFProcessor
         return HFProcessor(
             hf_client=self.hf_client,
             dataset_repo=self.dataset_repo
@@ -78,7 +78,7 @@ class AppContainer:
     @cached_property
     def kaggle_processor(self):
         """Kaggle processor."""
-        from lib.services.enrichment.kaggle_parser.processor import KaggleProcessor
+        from lib.services.datasets.enrichment.kaggle_parser.processor import KaggleProcessor
         return KaggleProcessor(
             kaggle_client=self.kaggle_client,
             dataset_repo=self.dataset_repo,
@@ -88,7 +88,7 @@ class AppContainer:
     @cached_property
     def embedding_processor(self):
         """Embedding processor."""
-        from lib.services.ml.embedding_processor import EmbeddingProcessor
+        from lib.services.datasets.ml.embedding_processor import EmbeddingProcessor
         return EmbeddingProcessor(
             dataset_repo=self.dataset_repo,
             embedder=self.embedder
@@ -106,19 +106,19 @@ class AppContainer:
     @cached_property
     def user_repo(self):
         """User repository."""
-        from lib.repositories import UserRepository
+        from lib.auth.repository import UserRepository
         return UserRepository()
 
     @cached_property
     def security_event_repo(self):
         """Security event repository."""
-        from lib.repositories import SecurityEventRepository
+        from lib.auth.repository import SecurityEventRepository
         return SecurityEventRepository()
 
     @cached_property
     def token_service(self):
         """Token service."""
-        from lib.services.auth.token_service import TokenService
+        from lib.auth.services.token_service import TokenService
         return TokenService(
             redis_manager=self.redis_auth,
             settings=self.settings,
@@ -128,7 +128,7 @@ class AppContainer:
     @cached_property
     def rate_limit_service(self):
         """Rate limit service."""
-        from lib.services.auth.rate_limit_service import RateLimitService
+        from lib.auth.services.rate_limit_service import RateLimitService
         return RateLimitService(
             redis_manager=self.redis_auth,
             logger=self.logger
@@ -137,7 +137,7 @@ class AppContainer:
     @cached_property
     def auth_service(self):
         """Auth service."""
-        from lib.services.auth.auth_service import AuthService
+        from lib.auth.services.auth_service import AuthService
         return AuthService(
             user_repo=self.user_repo,
             security_event_repo=self.security_event_repo,
@@ -150,7 +150,7 @@ class AppContainer:
     @cached_property
     def oauth_service(self):
         """OAuth service."""
-        from lib.services.auth.oauth_service import OAuthService
+        from lib.auth.services.oauth_service import OAuthService
         return OAuthService(
             user_repo=self.user_repo,
             security_event_repo=self.security_event_repo,

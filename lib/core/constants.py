@@ -1,12 +1,10 @@
 from enum import Enum
 
-
 class AppConstants:
     PROJECT_NAME = "DataSearch"
     API_V1_STR = "/api"
     REDIS_URL = "redis://localhost:6379/0"
     EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-
 
 class AppEnvironment(str, Enum):
     """Application environments."""
@@ -14,34 +12,28 @@ class AppEnvironment(str, Enum):
     STAGING = "staging"
     PRODUCTION = "production"
 
-
 class DBConnectArgs(dict):
     """Connect arguments for the database connection."""
     COMMAND_TIMEOUT = 60
 
-
 class LogConfig(str, Enum):
     """Logging configuration."""
     FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
 
 class ExternalAPIUrls:
     """External API base URLs."""
     HUGGINGFACE_DATASETS = "https://huggingface.co/api/datasets"
     KAGGLE_API = "https://www.kaggle.com/api/v1"
 
-
 class HuggingFaceTagPrefixes:
     """Prefixes for HuggingFace tags."""
     FILE_FORMATS = ['parquet', 'csv', 'json', 'text', 'arrow', 'webdataset']
     TASK_CATEGORIES = ['task_categories:', 'task_ids:']
 
-
 class UserRole(str, Enum):
     """User roles for authorization."""
     USER = "user"
     ADMIN = "admin"
-
 
 class AuthConstants:
     """Authentication and authorization constants."""

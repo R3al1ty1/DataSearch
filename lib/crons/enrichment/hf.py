@@ -1,10 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
-
 from celery import shared_task
-
 from lib.core.container import container
-
 
 @shared_task(name="hf.fetch_datasets")
 def fetch_datasets(limit: int = 1000, days_back: int = 1):

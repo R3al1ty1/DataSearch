@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from lib.core.constants import AppEnvironment
 
-
 class DatabaseManager:
     """Database manager for handling connections and sessions."""
     def __init__(

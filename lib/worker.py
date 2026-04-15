@@ -1,5 +1,4 @@
 from celery import Celery
-
 from lib.core.container import container
 
 settings = container.settings

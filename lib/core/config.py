@@ -1,8 +1,6 @@
 from pydantic import PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 from lib.core.constants import AppConstants, AppEnvironment, AuthConstants
-
 
 class Settings(BaseSettings):
     """Settings for the application."""
@@ -42,12 +40,14 @@ class Settings(BaseSettings):
     # OAuth - Google (optional)
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
-    GOOGLE_REDIRECT_URI: str | None = None
 
     # OAuth - Yandex (optional)
     YANDEX_CLIENT_ID: str | None = None
     YANDEX_CLIENT_SECRET: str | None = None
-    YANDEX_REDIRECT_URI: str | None = None
+
+    # OAuth callback base URL (this API) and frontend redirect URL
+    OAUTH_CALLBACK_BASE_URL: str = "http://localhost:8000"
+    FRONTEND_URL: str = "http://localhost:3000"
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
