@@ -1,9 +1,11 @@
 from uuid import UUID
-from sqlalchemy import select, update, func
+
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from lib.auth.models import User
+
+from lib.auth.models import SecurityEvent, User
 from lib.core.base_repository import BaseRepository
-from lib.auth.models import SecurityEvent
+
 
 class UserRepository(BaseRepository[User]):
     """Repository for user operations."""

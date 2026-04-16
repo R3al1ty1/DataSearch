@@ -1,7 +1,9 @@
 import logging
-from lib.core.redis_auth import RedisAuthManager
+
 from lib.core.constants import AuthConstants
 from lib.core.exceptions import RateLimitExceeded
+from lib.core.redis_auth import RedisAuthManager
+
 
 class RateLimitService:
     """Service for rate limiting login attempts."""

@@ -1,9 +1,12 @@
 import asyncio
 from typing import AsyncGenerator
+
 from lib.core.container import container
 from lib.services.datasets.schemas import KaggleEnrichedDatasetDTO
+
 from ..models import APIConsts
 from ..utils import initialize_kaggle_api
+
 
 class KaggleAPIClient:
     """Handles Kaggle API operations for detailed metadata."""

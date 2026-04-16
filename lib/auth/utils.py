@@ -1,14 +1,15 @@
+import re
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
-from jose import JWTError, jwt
-from lib.core.config import Settings
-from lib.core.constants import UserRole
-from lib.core.exceptions import TokenExpired, TokenInvalid
-from authlib.integrations.starlette_client import OAuth
-import re
+
 import bcrypt
-from lib.core.constants import AuthConstants
-from lib.core.exceptions import PasswordValidationError
+from authlib.integrations.starlette_client import OAuth
+from jose import JWTError, jwt
+
+from lib.core.config import Settings
+from lib.core.constants import AuthConstants, UserRole
+from lib.core.exceptions import PasswordValidationError, TokenExpired, TokenInvalid
+
 
 def create_access_token(
     user_id: UUID,

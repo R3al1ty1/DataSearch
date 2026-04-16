@@ -1,5 +1,7 @@
 from celery import shared_task
+
 from lib.core.container import container
+
 
 @shared_task(name="cleanup.check_broken_links")
 def check_broken_links(batch_size: int = 100):

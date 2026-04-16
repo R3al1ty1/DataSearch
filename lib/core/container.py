@@ -57,13 +57,30 @@ class AppContainer:
     @cached_property
     def dataset_repo(self):
         """Dataset repository."""
-        from lib.auth.repository import DatasetRepository
+        from lib.services.datasets.repository import DatasetRepository
         return DatasetRepository()
+
+    @cached_property
+    def search_log_repo(self):
+        """Search log repository."""
+        from lib.services.datasets.search_log_repository import SearchLogRepository
+        return SearchLogRepository()
+
+    @cached_property
+    def search_service(self):
+        """Search service."""
+        from lib.services.search import SearchService
+        return SearchService(
+            dataset_repo=self.dataset_repo,
+            search_log_repo=self.search_log_repo,
+            embedder=self.embedder,
+            logger=self.logger,
+        )
 
     @cached_property
     def enrichment_log_repo(self):
         """Enrichment log repository."""
-        from lib.auth.repository import EnrichmentLogRepository
+        from lib.services.datasets.repository import EnrichmentLogRepository
         return EnrichmentLogRepository()
 
     @cached_property
@@ -78,7 +95,9 @@ class AppContainer:
     @cached_property
     def kaggle_processor(self):
         """Kaggle processor."""
-        from lib.services.datasets.enrichment.kaggle_parser.processor import KaggleProcessor
+        from lib.services.datasets.enrichment.kaggle_parser.processor import (
+            KaggleProcessor,
+        )
         return KaggleProcessor(
             kaggle_client=self.kaggle_client,
             dataset_repo=self.dataset_repo,

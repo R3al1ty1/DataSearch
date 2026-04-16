@@ -1,6 +1,9 @@
 import asyncio
+
 from celery import shared_task
+
 from lib.core.container import container
+
 
 @shared_task(name="kaggle.seed_initial")
 def seed_initial(batch_size: int = 1000, force_redownload: bool = False):

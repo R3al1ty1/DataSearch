@@ -1,12 +1,16 @@
 import asyncio
-import pandas as pd
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import AsyncGenerator
+
+import pandas as pd
+
 from lib.core.container import container
 from lib.services.datasets.schemas import KaggleMetaDatasetDTO
+
 from ..models import MetaKaggleConsts, ParsingConsts
-from ..utils import initialize_kaggle_api, get_csv_path
+from ..utils import get_csv_path, initialize_kaggle_api
+
 
 class MetaKaggleParser:
     """Handles Meta Kaggle CSV operations"""

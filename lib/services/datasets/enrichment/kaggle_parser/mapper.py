@@ -1,5 +1,6 @@
 from lib.services.datasets.models import Dataset, EnrichmentStatus
-from lib.services.datasets.schemas import KaggleMetaDatasetDTO, KaggleEnrichedDatasetDTO
+from lib.services.datasets.schemas import KaggleEnrichedDatasetDTO, KaggleMetaDatasetDTO
+
 
 def map_meta_to_dataset(dto: KaggleMetaDatasetDTO) -> Dataset:
     """

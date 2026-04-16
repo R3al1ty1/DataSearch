@@ -1,6 +1,8 @@
 from pydantic import PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from lib.core.constants import AppConstants, AppEnvironment, AuthConstants
+
 
 class Settings(BaseSettings):
     """Settings for the application."""

@@ -30,3 +30,8 @@ dependencies = [
     "tenacity>=9.1.2",
     "uvicorn[standard]>=0.38.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

@@ -1,15 +1,17 @@
 import logging
 from dataclasses import dataclass
-from lib.core.config import Settings
-from lib.core.redis_auth import RedisAuthManager
+
+from lib.auth.models import User
 from lib.auth.utils import (
     create_access_token,
     create_refresh_token,
+    get_token_expiry,
     get_token_jti,
-    get_token_expiry
 )
+from lib.core.config import Settings
 from lib.core.constants import AuthConstants, UserRole
-from lib.auth.models import User
+from lib.core.redis_auth import RedisAuthManager
+
 
 @dataclass
 class TokenPair:

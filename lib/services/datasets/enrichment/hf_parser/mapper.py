@@ -2,6 +2,7 @@ from lib.core.constants import ExternalAPIUrls, HuggingFaceTagPrefixes
 from lib.services.datasets.models import Dataset, EnrichmentStatus
 from lib.services.datasets.schemas import HFDatasetDTO
 
+
 def map_hf_to_dataset(dto: HFDatasetDTO) -> Dataset:
     """
     Convert HuggingFace DTO to Dataset model.

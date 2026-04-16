@@ -1,6 +1,8 @@
 import logging
 from typing import AsyncGenerator
+
 import redis.asyncio as aioredis
+
 
 class RedisAuthManager:
     """Redis manager for authentication (database 1)."""

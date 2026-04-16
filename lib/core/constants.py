@@ -1,10 +1,12 @@
 from enum import Enum
 
+
 class AppConstants:
     PROJECT_NAME = "DataSearch"
     API_V1_STR = "/api"
     REDIS_URL = "redis://localhost:6379/0"
     EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
 
 class AppEnvironment(str, Enum):
     """Application environments."""

@@ -1,7 +1,7 @@
-from uuid import UUID
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field, HttpUrl, ConfigDict
-from pydantic import BaseModel, Field
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 class HFDatasetDTO(BaseModel):
     """DTO for HuggingFace API response."""
@@ -122,20 +122,54 @@ class KaggleEnrichedDatasetDTO(BaseModel):
             return self.createdDate
         return datetime.now(timezone.utc)
 
+class SearchFilters(BaseModel):
+    """Filters for dataset search."""
+    source_name: str | None = None
+    file_formats: list[str] | None = None
+    license: str | None = None
+    min_row_count: int | None = None
+    max_size_bytes: int | None = None
+
 class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=200, description="Natural language search query")
     limit: int = Field(10, ge=1, le=50, description="Number of results to return")
     offset: int = Field(0, ge=0, description="Pagination offset")
+    source_name: str | None = Field(None, description="Filter by source: kaggle, huggingface, openml")
+    file_formats: list[str] | None = Field(None, description="Filter by file formats (any match)")
+    license: str | None = Field(None, description="Filter by license")
+    min_row_count: int | None = Field(None, ge=0, description="Minimum number of rows")
+    max_size_bytes: int | None = Field(None, ge=0, description="Maximum size in bytes")
+
+    def to_filters(self) -> SearchFilters:
+        return SearchFilters(
+            source_name=self.source_name,
+            file_formats=self.file_formats,
+            license=self.license,
+            min_row_count=self.min_row_count,
+            max_size_bytes=self.max_size_bytes,
+        )
+
+
+class ScoreBreakdown(BaseModel):
+    semantic_score: float = Field(..., description="Cosine similarity score (0.0 - 1.0)")
+    static_score: float = Field(..., description="Popularity-based score (0.0 - 1.0)")
+    final_score: float = Field(..., description="Weighted final score (0.0 - 1.0)")
 
 class DatasetItem(BaseModel):
-    """Модель датасета в поисковой выдаче"""
     id: UUID
     source_name: str
     external_id: str
     title: str
     description: str | None = None
-    url: HttpUrl
-    score: float = Field(..., description="Relevance score (0.0 - 1.0)")
+    url: str
+    tags: list[str] | None = None
+    license: str | None = None
+    file_formats: list[str] | None = None
+    row_count: int | None = None
+    total_size_bytes: int | None = None
+    download_count: int = 0
+    score: float = Field(..., description="Final relevance score (0.0 - 1.0)")
+    score_breakdown: ScoreBreakdown
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -144,6 +178,25 @@ class SearchResponse(BaseModel):
     items: list[DatasetItem]
     total: int
     execution_time_ms: float
+
+class TopDatasetItem(BaseModel):
+    id: UUID
+    source_name: str
+    title: str
+    url: str
+    description: str | None = None
+    download_count: int
+    like_count: int
+    view_count: int
+    score: float = Field(..., description="Static popularity score (0.0 - 1.0)")
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TopSearchResponse(BaseModel):
+    items: list[TopDatasetItem]
+
 
 class SourceStats(BaseModel):
     """Statistics for a specific data source."""

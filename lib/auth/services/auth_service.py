@@ -1,21 +1,27 @@
 import logging
 from dataclasses import dataclass
 from uuid import UUID
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from lib.auth.utils import hash_password, verify_password, validate_password
-from lib.auth.utils import decode_token
+
+from lib.auth.models import User
+from lib.auth.repository import SecurityEventRepository, UserRepository
+from lib.auth.services.token_service import TokenPair, TokenService
+from lib.auth.utils import (
+    decode_token,
+    hash_password,
+    validate_password,
+    verify_password,
+)
 from lib.core.config import Settings
 from lib.core.constants import UserRole
 from lib.core.exceptions import (
     InvalidCredentials,
-    UserAlreadyExists,
+    TokenBlacklisted,
     TokenInvalid,
-    TokenBlacklisted
+    UserAlreadyExists,
 )
-from lib.auth.models import User
-from lib.auth.repository import UserRepository
-from lib.auth.repository import SecurityEventRepository
-from lib.auth.services.token_service import TokenService, TokenPair
+
 
 @dataclass
 class AuthResult:

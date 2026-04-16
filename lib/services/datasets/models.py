@@ -1,13 +1,13 @@
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import (
-    String, Text, Boolean, Float, DateTime, Index, ARRAY, BIGINT
-)
+from uuid import UUID
+
+from sqlalchemy import ARRAY, BIGINT, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.dialects.postgresql import JSONB, ENUM as PG_ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 from pgvector.sqlalchemy import Vector
+
 from lib.core.base_model import Base, TimestampMixin, UUIDMixin
-from uuid import UUID
 from sqlalchemy import String, Text, Integer, ForeignKey, Index
 
 class DatasetFieldsExclude:
@@ -272,3 +272,24 @@ class DatasetEnrichmentLog(Base, UUIDMixin, TimestampMixin):
             f"<EnrichmentLog(dataset_id={self.dataset_id}, "
             f"stage={self.stage}, result={self.result})>"
         )
+
+
+class SearchLog(Base, UUIDMixin):
+    """Log of user search queries for analytics."""
+    __tablename__ = "search_logs"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=False,
+        index=True
+    )
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    filters: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    result_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    latency_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default="now()",
+        index=True
+    )

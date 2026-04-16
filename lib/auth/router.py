@@ -1,29 +1,29 @@
 import logging
 from typing import Annotated
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from lib.core.container import container
-from lib.core.exceptions import AuthenticationError
-from lib.auth.schemas import (
-    RegisterRequest,
-    LoginRequest,
-    AuthResponse,
-    TokenResponse,
-    UserResponse
-)
+
 from lib.auth.dependencies import (
+    delete_refresh_cookie,
     get_current_active_user,
     get_ip_address,
     get_user_agent,
     set_refresh_cookie,
-    delete_refresh_cookie,
 )
 from lib.auth.models import User
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import RedirectResponse
+from lib.auth.schemas import (
+    AuthResponse,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+    YandexTokenRequest,
+)
 from lib.auth.utils import oauth
-from lib.auth.schemas import TokenResponse, YandexTokenRequest
-from lib.auth.dependencies import get_ip_address, get_user_agent, set_refresh_cookie
+from lib.core.container import container
+from lib.core.exceptions import AuthenticationError
 
 router = APIRouter(tags=["Auth"])
 

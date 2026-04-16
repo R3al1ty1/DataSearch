@@ -1,13 +1,14 @@
 from datetime import datetime
-from sqlalchemy import String, Boolean, Index
+from uuid import UUID
+
+from sqlalchemy import Boolean, DateTime, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+
 from lib.core.base_model import Base, TimestampMixin, UUIDMixin
 from lib.core.constants import UserRole
-from uuid import UUID
-from sqlalchemy import String, Text, Index, DateTime, func
-from sqlalchemy.dialects.postgresql import JSONB
-from lib.core.base_model import Base, UUIDMixin
+
 
 class User(Base, UUIDMixin, TimestampMixin):
     """User model for authentication."""

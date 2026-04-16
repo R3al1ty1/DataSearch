@@ -5,6 +5,7 @@ Usage:
     uv run python lib/scripts/test_embedding_task.py
 """
 import asyncio
+
 from lib.core.container import container
 
 

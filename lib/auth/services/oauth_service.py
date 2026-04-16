@@ -1,12 +1,14 @@
 import logging
+
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from lib.auth.repository import SecurityEventRepository, UserRepository
+from lib.auth.services.auth_service import AuthResult
+from lib.auth.services.token_service import TokenService
 from lib.core.constants import UserRole
 from lib.core.exceptions import AuthenticationError
-from lib.auth.repository import UserRepository
-from lib.auth.repository import SecurityEventRepository
-from lib.auth.services.token_service import TokenService
-from lib.auth.services.auth_service import AuthResult
+
 
 class OAuthService:
     """Service for OAuth authentication (Google, Yandex)."""

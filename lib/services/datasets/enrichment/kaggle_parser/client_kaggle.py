@@ -1,11 +1,14 @@
 from datetime import datetime
 from typing import AsyncGenerator
+
 from lib.core.container import container
-from lib.services.datasets.schemas import KaggleMetaDatasetDTO, KaggleEnrichedDatasetDTO
-from .services.meta_parser import MetaKaggleParser
+from lib.services.datasets.schemas import KaggleEnrichedDatasetDTO, KaggleMetaDatasetDTO
+
+from .models import APIConsts, MetaKaggleConsts, ParsingConsts
 from .services.api_parser import KaggleAPIClient
-from .models import MetaKaggleConsts, APIConsts, ParsingConsts
+from .services.meta_parser import MetaKaggleParser
 from .utils import get_csv_path
+
 
 class KaggleClient:
     """Main orchestrator for Kaggle dataset ingestion."""

@@ -1,11 +1,13 @@
 from typing import Annotated
+
 from fastapi import Depends, HTTPException, Request, Response, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from lib.core.container import container
-from lib.core.constants import UserRole
-from lib.core.exceptions import AuthenticationError
+
 from lib.auth.models import User
+from lib.core.constants import UserRole
+from lib.core.container import container
+from lib.core.exceptions import AuthenticationError
 
 security = HTTPBearer()
 
