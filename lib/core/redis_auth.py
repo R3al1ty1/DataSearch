@@ -31,12 +31,15 @@ class RedisAuthManager:
             self._pool = None
             self._logger.info("Redis auth pool closed")
 
-    async def get_session(self) -> AsyncGenerator[aioredis.Redis, None]:
-        """Yields Redis connection from pool."""
+    def get_client(self) -> aioredis.Redis:
+        """Return Redis client from pool."""
         if not self._pool:
             raise RuntimeError("Redis not initialized. Call init() first.")
+        return aioredis.Redis(connection_pool=self._pool)
 
-        redis = aioredis.Redis(connection_pool=self._pool)
+    async def get_session(self) -> AsyncGenerator[aioredis.Redis, None]:
+        """Yields Redis connection from pool."""
+        redis = self.get_client()
         try:
             yield redis
         finally:

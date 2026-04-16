@@ -33,7 +33,6 @@ def seed_initial(batch_size: int = 1000, force_redownload: bool = False):
         "source": "kaggle_meta_csv"
     }
 
-
 @shared_task(name="kaggle.enrich_pending")
 def enrich_pending(batch_size: int = 50):
     """Enriches pending datasets with detailed metadata from Kaggle API."""
@@ -56,7 +55,6 @@ def enrich_pending(batch_size: int = 50):
         "failed": failed,
         "source": "kaggle"
     }
-
 
 @shared_task(name="kaggle.fetch_latest")
 def fetch_latest(limit: int = 100, sort_by: str = 'updated'):

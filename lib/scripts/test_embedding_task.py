@@ -5,6 +5,7 @@ Usage:
     uv run python lib/scripts/test_embedding_task.py
 """
 import asyncio
+
 from lib.core.container import container
 
 
@@ -29,7 +30,7 @@ async def check_datasets_status():
 
 async def test_embedding_processor():
     """Test EmbeddingProcessor directly."""
-    from lib.services.ml.embedding_processor import EmbeddingProcessor
+    from lib.services.datasets.ml.embedding_processor import EmbeddingProcessor
 
     print("\n=== Testing EmbeddingProcessor ===")
 

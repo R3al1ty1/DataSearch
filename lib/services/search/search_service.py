@@ -4,10 +4,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lib.models.dataset import Dataset
-from lib.repositories.dataset import DatasetRepository
-from lib.repositories.search_log import SearchLogRepository
-from lib.schemas.dataset import (
+from lib.services.datasets.models import Dataset
+from lib.services.datasets.repository import DatasetRepository
+from lib.services.datasets.search_log_repository import SearchLogRepository
+from lib.services.datasets.schemas import (
     DatasetItem,
     ScoreBreakdown,
     SearchFilters,
@@ -15,7 +15,7 @@ from lib.schemas.dataset import (
     TopDatasetItem,
     TopSearchResponse,
 )
-from lib.services.ml.embedder import EmbeddingService
+from lib.services.datasets.ml.embedder import EmbeddingService
 
 SEMANTIC_WEIGHT = 0.7
 STATIC_WEIGHT = 0.3
