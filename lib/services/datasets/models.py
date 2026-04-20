@@ -2,13 +2,26 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import ARRAY, BIGINT, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, Index
-from sqlalchemy.dialects.postgresql import JSONB, ENUM as PG_ENUM
-from sqlalchemy.orm import Mapped, mapped_column
 from pgvector.sqlalchemy import Vector
+from sqlalchemy import (
+    ARRAY,
+    BIGINT,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
+)
+from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
 
 from lib.core.base_model import Base, TimestampMixin, UUIDMixin
-from sqlalchemy import String, Text, Integer, ForeignKey, Index
+
 
 class DatasetFieldsExclude:
     """Fields to exclude during upsert operations."""
@@ -175,6 +188,12 @@ class Dataset(Base, UUIDMixin, TimestampMixin):
             "source_name",
             "external_id",
             unique=True
+        ),
+        Index(
+            "idx_datasets_active_last_checked",
+            "is_active",
+            "last_checked_at",
+            postgresql_where=(text("is_active = true"))
         ),
     )
 

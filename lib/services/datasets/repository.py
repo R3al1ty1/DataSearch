@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import and_, bindparam, func, or_, select, update
@@ -323,6 +323,59 @@ class DatasetRepository(BaseRepository[Dataset]):
         )
         return list(result.scalars().all())
 
+    async def get_stale_for_validation(
+        self,
+        session: AsyncSession,
+        batch_size: int = 200,
+        stale_after_hours: int = 48,
+    ) -> list[Dataset]:
+        """Returns active datasets whose last_checked_at is stale or NULL."""
+        threshold = datetime.now(timezone.utc) - timedelta(hours=stale_after_hours)
+        result = await session.execute(
+            select(Dataset)
+            .where(
+                and_(
+                    Dataset.is_active.is_(True),
+                    or_(
+                        Dataset.last_checked_at.is_(None),
+                        Dataset.last_checked_at < threshold,
+                    ),
+                )
+            )
+            .order_by(Dataset.last_checked_at.asc().nulls_first())
+            .limit(batch_size)
+        )
+        return list(result.scalars().all())
+
+    async def bulk_update_check_results(
+        self,
+        session: AsyncSession,
+        results: list,
+    ) -> tuple[int, int]:
+        """Batch-updates is_active and last_checked_at for checked datasets.
+
+        Returns (total_updated, deactivated_count).
+        """
+        now = datetime.now(timezone.utc)
+        all_ids = [r.dataset_id for r in results]
+        deactivated_ids = [r.dataset_id for r in results if not r.is_reachable]
+
+        await session.execute(
+            update(Dataset)
+            .where(Dataset.id.in_(all_ids))
+            .values(last_checked_at=now)
+        )
+
+        if deactivated_ids:
+            await session.execute(
+                update(Dataset)
+                .where(Dataset.id.in_(deactivated_ids))
+                .values(is_active=False)
+            )
+
+        await session.flush()
+        return len(all_ids), len(deactivated_ids)
+
 
 class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
     """Repository for enrichment log operations."""
@@ -428,7 +481,7 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         self, session: AsyncSession, hours: int = 24
     ) -> list[EnrichmentStageStats]:
         """Get enrichment statistics grouped by stage and result."""
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         result = await session.execute(
             select(
@@ -462,7 +515,7 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         self, session: AsyncSession, hours: int = 168, limit: int = 10
     ) -> list[ErrorStats]:
         """Get top error types in the last N hours."""
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         result = await session.execute(
             select(

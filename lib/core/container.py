@@ -179,5 +179,22 @@ class AppContainer:
             logger=self.logger
         )
 
+    @cached_property
+    def link_checker(self):
+        """Link checker service."""
+        from lib.services.datasets.validation.link_checker import LinkCheckerService
+        return LinkCheckerService(settings=self.settings, logger=self.logger)
+
+    @cached_property
+    def cleanup_service(self):
+        """Dataset cleanup service."""
+        from lib.services.datasets.cleanup.service import CleanupService
+        return CleanupService(
+            dataset_repo=self.dataset_repo,
+            enrichment_log_repo=self.enrichment_log_repo,
+            link_checker=self.link_checker,
+            logger=self.logger,
+        )
+
 
 container = AppContainer()

@@ -10,6 +10,7 @@ from lib.core.constants import UserRole
 from lib.system.schemas import HealthResponse
 from lib.auth.dependencies import require_role
 from lib.auth.models import User
+from lib.services.datasets.cleanup.schemas import CleanupTriggerRequest, CleanupTriggerResponse
 
 router = APIRouter(tags=["System"])
 
@@ -73,4 +74,36 @@ async def trigger_embedding_generation(
             task_name="enrich.generate_embeddings",
             status="error",
             message=str(e)
+        )
+
+
+@router.post("/tasks/cleanup-datasets", response_model=CleanupTriggerResponse, status_code=202)
+async def trigger_dataset_cleanup(
+    current_user: Annotated[User, Depends(require_role(UserRole.ADMIN))],
+    request: CleanupTriggerRequest = CleanupTriggerRequest(),
+    logger: logging.Logger = Depends(container.logger_manager.get_logger),
+):
+    """
+    Trigger dataset cleanup task manually.
+
+    Requires admin role.
+
+    Queues a Celery task that checks active dataset URLs and deactivates unreachable ones.
+    """
+    from lib.crons.cleanup import check_inactive_datasets
+
+    try:
+        result = check_inactive_datasets.delay(request.batch_size, request.stale_after_hours)
+        logger.info(f"Triggered dataset cleanup task: {result.id}")
+        return CleanupTriggerResponse(
+            task_id=result.id,
+            status="queued",
+            message=f"Cleanup task queued with ID: {result.id}",
+        )
+    except Exception as e:
+        logger.error(f"Failed to trigger dataset cleanup: {e}")
+        return CleanupTriggerResponse(
+            task_id="",
+            status="error",
+            message=str(e),
         )

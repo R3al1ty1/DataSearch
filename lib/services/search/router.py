@@ -54,5 +54,10 @@ async def visit_dataset(
     if not dataset:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
 
+    check_result = await container.link_checker.check_url(dataset.id, dataset.url)
+    if not check_result.is_reachable and check_result.error_type != "timeout":
+        await container.cleanup_service.deactivate_dataset(db, dataset.id, check_result)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset is no longer available")
+
     logger.info(f"User {current_user.id} visiting dataset {dataset_id}")
     return RedirectResponse(url=dataset.url)

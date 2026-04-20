@@ -147,28 +147,28 @@ class TestSearchRequestValidation:
     def test_query_min_length(self):
         from pydantic import ValidationError
 
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         with pytest.raises(ValidationError):
             SearchRequest(query="")
 
     def test_query_max_length(self):
         from pydantic import ValidationError
 
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         with pytest.raises(ValidationError):
             SearchRequest(query="x" * 201)
 
     def test_limit_bounds(self):
         from pydantic import ValidationError
 
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         with pytest.raises(ValidationError):
             SearchRequest(query="test", limit=0)
         with pytest.raises(ValidationError):
             SearchRequest(query="test", limit=51)
 
     def test_to_filters_excludes_none_fields(self):
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         req = SearchRequest(query="test", source_name="kaggle")
         filters = req.to_filters()
         assert filters.source_name == "kaggle"
@@ -176,7 +176,7 @@ class TestSearchRequestValidation:
         assert filters.license is None
 
     def test_defaults(self):
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         req = SearchRequest(query="test")
         assert req.limit == 10
         assert req.offset == 0

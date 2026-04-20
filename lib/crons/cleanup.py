@@ -1,27 +1,30 @@
+import asyncio
+
 from celery import shared_task
 
 from lib.core.container import container
 
 
-@shared_task(name="cleanup.check_broken_links")
-def check_broken_links(batch_size: int = 100):
-    """Checks for broken dataset links (Janitor Loop)."""
+@shared_task(
+    name="cleanup.check_inactive_datasets",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=300,
+    soft_time_limit=3000,
+    time_limit=3600,
+)
+def check_inactive_datasets(self, batch_size: int = 200, stale_after_hours: int = 48) -> dict:
+    """Checks active dataset URLs and deactivates unreachable ones."""
     logger = container.logger
-    logger.info(f"Starting broken link check: batch_size={batch_size}")
+    logger.info(f"Starting dataset cleanup: batch_size={batch_size}, stale_after_hours={stale_after_hours}")
 
-    # TODO: Implement link checking logic
-    # This will be implemented when the repository and validation layers are ready
+    async def _process():
+        async with container.db.get_session() as session:
+            return await container.cleanup_service.run_cleanup_batch(session, batch_size, stale_after_hours)
 
-    logger.info("Broken link check completed")
-    return {"checked": 0, "broken": 0}
-
-@shared_task(name="cleanup.remove_old_cache")
-def remove_old_cache(max_age_hours: int = 24):
-    """Removes old cache entries from Redis."""
-    logger = container.logger
-    logger.info(f"Starting cache cleanup: max_age={max_age_hours}h")
-
-    # TODO: Implement cache cleanup logic
-
-    logger.info("Cache cleanup completed")
-    return {"removed": 0}
+    try:
+        result = asyncio.run(_process())
+        return {"checked": result.checked, "deactivated": result.deactivated, "errors": result.errors}
+    except Exception as exc:
+        logger.error(f"Cleanup task failed, retrying: attempt={self.request.retries}, error={exc}")
+        raise self.retry(exc=exc)

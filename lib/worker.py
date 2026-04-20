@@ -54,4 +54,9 @@ celery_app.conf.beat_schedule = {
         'task': 'search.compute_static_scores',
         'schedule': 86400.0,
     },
+    'check-inactive-datasets-every-2d': {
+        'task': 'cleanup.check_inactive_datasets',
+        'schedule': 172800.0,
+        'kwargs': {'batch_size': 200, 'stale_after_hours': 48},
+    },
 }

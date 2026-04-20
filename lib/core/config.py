@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     OAUTH_CALLBACK_BASE_URL: str = "http://localhost:8000"
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Link checker settings
+    LINK_CHECK_TIMEOUT_SECONDS: float = 10.0
+    LINK_CHECK_MAX_CONCURRENCY: int = 20
+    LINK_CHECK_DOMAIN_RPS: dict[str, float] = {
+        "huggingface.co": 0.5,
+        "kaggle.com": 0.3,
+        "openml.org": 0.5,
+    }
+    LINK_CHECK_DEFAULT_RPS: float = 1.0
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """Database connection URI."""

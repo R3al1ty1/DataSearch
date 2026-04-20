@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lib.auth.models import User
 from lib.auth.repository import SecurityEventRepository, UserRepository
+from lib.auth.services.rate_limit_service import RateLimitService
 from lib.auth.services.token_service import TokenPair, TokenService
 from lib.auth.utils import (
     decode_token,
