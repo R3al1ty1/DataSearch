@@ -105,6 +105,15 @@ class AppContainer:
         )
 
     @cached_property
+    def static_score_service(self):
+        """Static score service."""
+        from lib.services.static_scores import StaticScoreService
+        return StaticScoreService(
+            dataset_repo=self.dataset_repo,
+            logger=self.logger,
+        )
+
+    @cached_property
     def embedding_processor(self):
         """Embedding processor."""
         from lib.services.datasets.ml.embedding_processor import EmbeddingProcessor

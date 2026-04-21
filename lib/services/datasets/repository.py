@@ -369,13 +369,15 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         )
         return list(result.scalars().all())
 
-    async def get_metric_data_for_scoring(
+    async def get_datasets_for_scoring(
         self,
         session: AsyncSession,
-    ) -> list[tuple[UUID, int, int, int]]:
-        """Returns (id, download_count, view_count, like_count) for active enriched datasets."""
+    ) -> list[Dataset]:
+        """Returns active enriched datasets with all fields needed for static scoring (embedding excluded)."""
+        from sqlalchemy.orm import defer
         result = await session.execute(
-            select(Dataset.id, Dataset.download_count, Dataset.view_count, Dataset.like_count)
+            select(Dataset)
+            .options(defer(Dataset.embedding))
             .where(
                 and_(
                     Dataset.is_active.is_(True),
@@ -383,22 +385,28 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
                 )
             )
         )
-        return list(result.all())
+        return list(result.scalars().all())
 
     async def batch_update_static_scores(
         self,
         session: AsyncSession,
-        scores: dict[UUID, float],
+        scores: dict[UUID, dict],
     ) -> int:
-        """Batch updates static_score for a set of datasets."""
+        """Batch updates static_score and component sub-scores for a set of datasets."""
         if not scores:
             return 0
 
         await session.execute(
             update(Dataset)
             .where(Dataset.id == bindparam('bid'))
-            .values(static_score=bindparam('score')),
-            [{'bid': dataset_id, 'score': score} for dataset_id, score in scores.items()],
+            .values(
+                static_score=bindparam('static_score'),
+                docs_score=bindparam('docs_score'),
+                repr_score=bindparam('repr_score'),
+                social_score=bindparam('social_score'),
+                legal_score=bindparam('legal_score'),
+            ),
+            [{'bid': dataset_id, **score_dict} for dataset_id, score_dict in scores.items()],
         )
         await session.flush()
         return len(scores)
