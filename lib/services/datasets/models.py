@@ -8,7 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from pgvector.sqlalchemy import Vector
 
 from lib.core.base_model import Base, TimestampMixin, UUIDMixin
-from sqlalchemy import String, Text, Integer, ForeignKey, Index
 
 class DatasetFieldsExclude:
     """Fields to exclude during upsert operations."""
@@ -118,10 +117,11 @@ class Dataset(Base, UUIDMixin, TimestampMixin):
         nullable=True
     )
 
-    static_score: Mapped[float | None] = mapped_column(
-        Float,
-        nullable=True
-    )
+    static_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    docs_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    repr_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    social_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    legal_score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,

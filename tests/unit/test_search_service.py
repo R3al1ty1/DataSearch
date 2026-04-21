@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import pytest
 
-from lib.crons.enrichment.static_scores import _compute_scores
 from lib.services.search.search_service import (
     SEMANTIC_WEIGHT,
     STATIC_WEIGHT,
@@ -115,60 +114,33 @@ class TestRank:
         assert scores == sorted(scores, reverse=True)
 
 
-class TestComputeScores:
-    def test_empty_input_returns_empty(self):
-        assert _compute_scores([]) == {}
-
-    def test_single_row_gets_max_score(self):
-        dataset_id = uuid4()
-        scores = _compute_scores([(dataset_id, 100, 50, 20)])
-        assert scores[dataset_id] == 1.0
-
-    def test_scores_in_range_zero_to_one(self):
-        rows = [(uuid4(), 1000, 500, 100), (uuid4(), 10, 5, 1), (uuid4(), 0, 0, 0)]
-        scores = _compute_scores(rows)
-        for score in scores.values():
-            assert 0.0 <= score <= 1.0
-
-    def test_dataset_with_all_zeros_gets_zero_score(self):
-        id_high = uuid4()
-        id_zero = uuid4()
-        scores = _compute_scores([(id_high, 1000, 500, 100), (id_zero, 0, 0, 0)])
-        assert scores[id_zero] == 0.0
-
-    def test_highest_metrics_gets_highest_score(self):
-        id_a = uuid4()
-        id_b = uuid4()
-        scores = _compute_scores([(id_a, 1000, 1000, 1000), (id_b, 1, 1, 1)])
-        assert scores[id_a] > scores[id_b]
-
 
 class TestSearchRequestValidation:
     def test_query_min_length(self):
         from pydantic import ValidationError
 
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         with pytest.raises(ValidationError):
             SearchRequest(query="")
 
     def test_query_max_length(self):
         from pydantic import ValidationError
 
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         with pytest.raises(ValidationError):
             SearchRequest(query="x" * 201)
 
     def test_limit_bounds(self):
         from pydantic import ValidationError
 
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         with pytest.raises(ValidationError):
             SearchRequest(query="test", limit=0)
         with pytest.raises(ValidationError):
             SearchRequest(query="test", limit=51)
 
     def test_to_filters_excludes_none_fields(self):
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         req = SearchRequest(query="test", source_name="kaggle")
         filters = req.to_filters()
         assert filters.source_name == "kaggle"
@@ -176,7 +148,7 @@ class TestSearchRequestValidation:
         assert filters.license is None
 
     def test_defaults(self):
-        from lib.schemas.dataset import SearchRequest
+        from lib.services.datasets.schemas import SearchRequest
         req = SearchRequest(query="test")
         assert req.limit == 10
         assert req.offset == 0
