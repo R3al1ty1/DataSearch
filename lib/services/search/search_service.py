@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lib.services.datasets.click_repository import ClickRepository
 from lib.services.datasets.models import Dataset
 from lib.services.datasets.repository import DatasetRepository
 from lib.services.datasets.search_log_repository import SearchLogRepository
@@ -16,10 +17,9 @@ from lib.services.datasets.schemas import (
     TopSearchResponse,
 )
 from lib.services.datasets.ml.embedder import EmbeddingService
+from lib.services.search.relevance_ranker import RelevanceRanker
 
-SEMANTIC_WEIGHT = 0.7
-STATIC_WEIGHT = 0.3
-SEARCH_BUFFER_MULTIPLIER = 2
+SEARCH_BUFFER_MULTIPLIER = 5
 
 
 class SearchService:
@@ -27,12 +27,16 @@ class SearchService:
         self,
         dataset_repo: DatasetRepository,
         search_log_repo: SearchLogRepository,
+        click_repo: ClickRepository,
         embedder: EmbeddingService,
+        ranker: RelevanceRanker,
         logger: logging.Logger,
     ):
         self._dataset_repo = dataset_repo
         self._search_log_repo = search_log_repo
+        self._click_repo = click_repo
         self._embedder = embedder
+        self._ranker = ranker
         self._logger = logger
 
     async def search(
@@ -50,38 +54,56 @@ class SearchService:
 
         query_embedding = self._embedder.encode(query).tolist()
 
+        candidate_limit = limit * SEARCH_BUFFER_MULTIPLIER
+
         raw_results = await self._dataset_repo.vector_search(
             session,
             query_embedding,
             filters,
-            limit=limit * SEARCH_BUFFER_MULTIPLIER,
+            limit=candidate_limit,
         )
 
-        ranked = self._rank(raw_results)
+        bm25_results = None
+        if self._ranker.strategy == "v3_rrf":
+            bm25_results = await self._dataset_repo.fts_search(
+                session,
+                query=query,
+                filters=filters,
+                limit=candidate_limit,
+            )
+
+        ranked = self._ranker.rank(raw_results, bm25_results)
         paginated = ranked[offset: offset + limit]
 
         items = [
             self._to_dataset_item(dataset, breakdown)
             for dataset, _, breakdown in paginated
         ]
+        result_ids = [str(dataset.id) for dataset, _, _ in paginated]
 
         latency_ms = round((time.perf_counter() - start) * 1000, 2)
 
-        await self._search_log_repo.log_search(
+        search_log = await self._search_log_repo.log_search(
             session,
             user_id=user_id,
             query=query,
             filters=filters.model_dump(exclude_none=True) or None,
             result_count=len(raw_results),
             latency_ms=latency_ms,
+            result_ids=result_ids,
+            score_version=self._ranker.strategy,
         )
 
-        self._logger.info(f"Search completed: {len(items)} items returned in {latency_ms}ms")
+        self._logger.info(
+            f"Search completed: {len(items)} items in {latency_ms}ms "
+            f"strategy={self._ranker.strategy}"
+        )
 
         return SearchResponse(
             items=items,
             total=len(ranked),
             execution_time_ms=latency_ms,
+            search_log_id=search_log.id,
         )
 
     async def get_top_datasets(
@@ -94,24 +116,25 @@ class SearchService:
             items=[self._to_top_dataset_item(d) for d in datasets]
         )
 
-    def _rank(
+    async def record_click(
         self,
-        results: list[tuple[Dataset, float]],
-    ) -> list[tuple[Dataset, float, ScoreBreakdown]]:
-        """Hybrid ranking: final_score = α * semantic_score + β * static_score."""
-        ranked = []
-        for dataset, cosine_distance in results:
-            semantic_score = max(0.0, 1.0 - cosine_distance)
-            static_score = dataset.static_score or 0.0
-            final_score = SEMANTIC_WEIGHT * semantic_score + STATIC_WEIGHT * static_score
-            breakdown = ScoreBreakdown(
-                semantic_score=round(semantic_score, 4),
-                static_score=round(static_score, 4),
-                final_score=round(final_score, 4),
-            )
-            ranked.append((dataset, final_score, breakdown))
-        ranked.sort(key=lambda x: x[1], reverse=True)
-        return ranked
+        session: AsyncSession,
+        user_id: UUID,
+        dataset_id: UUID,
+        search_log_id: UUID | None,
+        position: int,
+    ) -> None:
+        await self._click_repo.record_click(
+            session,
+            user_id=user_id,
+            dataset_id=dataset_id,
+            search_log_id=search_log_id,
+            position=position,
+        )
+        self._logger.info(
+            f"Click recorded: user={user_id} dataset={dataset_id} "
+            f"position={position} search_log={search_log_id}"
+        )
 
     def _to_dataset_item(self, dataset: Dataset, breakdown: ScoreBreakdown) -> DatasetItem:
         return DatasetItem(

@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     OAUTH_CALLBACK_BASE_URL: str = "http://localhost:8000"
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Ranking
+    RANKING_STRATEGY: str = "v1_hybrid"
+    FRESHNESS_HALFLIFE_DAYS: int = 365
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """Database connection URI."""

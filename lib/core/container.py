@@ -67,13 +67,36 @@ class AppContainer:
         return SearchLogRepository()
 
     @cached_property
+    def click_repo(self):
+        """Click event repository."""
+        from lib.services.datasets.click_repository import ClickRepository
+        return ClickRepository()
+
+    @cached_property
+    def freshness_scorer(self):
+        """Freshness scorer for relevance ranking."""
+        from lib.services.search.freshness_scorer import FreshnessScorer
+        return FreshnessScorer(halflife_days=self.settings.FRESHNESS_HALFLIFE_DAYS)
+
+    @cached_property
+    def relevance_ranker(self):
+        """Relevance ranker with configurable strategy."""
+        from lib.services.search.relevance_ranker import RelevanceRanker
+        return RelevanceRanker(
+            freshness_scorer=self.freshness_scorer,
+            strategy=self.settings.RANKING_STRATEGY,
+        )
+
+    @cached_property
     def search_service(self):
         """Search service."""
         from lib.services.search import SearchService
         return SearchService(
             dataset_repo=self.dataset_repo,
             search_log_repo=self.search_log_repo,
+            click_repo=self.click_repo,
             embedder=self.embedder,
+            ranker=self.relevance_ranker,
             logger=self.logger,
         )
 
