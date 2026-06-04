@@ -152,8 +152,10 @@ class SearchRequest(BaseModel):
 
 class ScoreBreakdown(BaseModel):
     semantic_score: float = Field(..., description="Cosine similarity score (0.0 - 1.0)")
-    static_score: float = Field(..., description="Popularity-based score (0.0 - 1.0)")
-    final_score: float = Field(..., description="Weighted final score (0.0 - 1.0)")
+    bm25_score: float = Field(0.0, description="BM25 full-text score (0.0+ raw ts_rank; 0.0 if not in FTS results)")
+    static_score: float = Field(..., description="Quality-based static score (0.0 - 1.0)")
+    freshness_score: float = Field(0.0, description="Recency score (0.0 - 1.0)")
+    final_score: float = Field(..., description="Weighted final score")
 
 class DatasetItem(BaseModel):
     id: UUID
@@ -174,10 +176,17 @@ class DatasetItem(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ClickRequest(BaseModel):
+    dataset_id: UUID
+    search_log_id: UUID | None = None
+    position: int = Field(..., ge=0)
+
+
 class SearchResponse(BaseModel):
     items: list[DatasetItem]
     total: int
     execution_time_ms: float
+    search_log_id: UUID | None = None
 
 class TopDatasetItem(BaseModel):
     id: UUID

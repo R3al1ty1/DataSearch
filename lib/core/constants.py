@@ -5,7 +5,7 @@ class AppConstants:
     PROJECT_NAME = "DataSearch"
     API_V1_STR = "/api"
     REDIS_URL = "redis://localhost:6379/0"
-    EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+    EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 
 
 class AppEnvironment(str, Enum):

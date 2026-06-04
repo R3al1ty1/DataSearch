@@ -20,14 +20,19 @@ class SearchLogRepository(BaseRepository[SearchLog]):
         filters: dict | None,
         result_count: int,
         latency_ms: float,
-    ) -> None:
-        """Logs a search query for analytics."""
+        result_ids: list[str] | None = None,
+        score_version: str = "v1_hybrid",
+    ) -> SearchLog:
+        """Logs a search query and returns the created SearchLog."""
         log = SearchLog(
             user_id=user_id,
             query=query,
             filters=filters,
             result_count=result_count,
             latency_ms=latency_ms,
+            result_ids=result_ids,
+            score_version=score_version,
         )
         session.add(log)
         await session.flush()
+        return log

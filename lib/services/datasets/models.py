@@ -287,9 +287,32 @@ class SearchLog(Base, UUIDMixin):
     filters: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     result_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     latency_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    result_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    score_version: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="v1_hybrid", server_default="v1_hybrid"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default="now()",
         index=True
+    )
+
+
+class SearchClickEvent(Base, UUIDMixin):
+    """Click event when a user visits a dataset from search results."""
+    __tablename__ = "search_click_events"
+
+    search_log_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("search_logs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    dataset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default="now()", index=True
     )

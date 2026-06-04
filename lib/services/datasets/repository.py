@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import and_, bindparam, func, or_, select, update
+from sqlalchemy import and_, bindparam, column, func, literal_column, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.inspection import inspect
@@ -266,6 +266,44 @@ class DatasetRepository(BaseRepository[Dataset]):
         }
         fields['updated_at'] = func.now()
         return fields
+
+    async def fts_search(
+        self,
+        session: AsyncSession,
+        query: str,
+        filters: SearchFilters,
+        limit: int,
+    ) -> list[tuple[Dataset, float]]:
+        """Full-text search using PostgreSQL tsvector (BM25-like ts_rank)."""
+        search_vector = column("search_vector")
+        ts_query_fn = func.plainto_tsquery(literal_column("'english'"), query)
+        rank_col = func.ts_rank(search_vector, ts_query_fn)
+
+        conditions = [
+            Dataset.is_active.is_(True),
+            search_vector.op("@@")(ts_query_fn),
+        ]
+
+        if filters.source_name:
+            conditions.append(Dataset.source_name == filters.source_name)
+        if filters.license:
+            conditions.append(Dataset.license == filters.license)
+        if filters.file_formats:
+            conditions.append(Dataset.file_formats.overlap(filters.file_formats))
+        if filters.min_row_count is not None:
+            conditions.append(Dataset.row_count >= filters.min_row_count)
+        if filters.max_size_bytes is not None:
+            conditions.append(Dataset.total_size_bytes <= filters.max_size_bytes)
+
+        stmt = (
+            select(Dataset, rank_col.label("bm25_rank"))
+            .where(and_(*conditions))
+            .order_by(rank_col.desc())
+            .limit(limit)
+        )
+
+        result = await session.execute(stmt)
+        return [(row[0], float(row[1])) for row in result.all()]
 
     async def vector_search(
         self,
