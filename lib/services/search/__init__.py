@@ -1,3 +1,3 @@
-from lib.services.search.search_service import SearchService
+from lib.services.search.service import SearchService
 
 __all__ = ["SearchService"]

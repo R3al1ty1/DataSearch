@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from lib.services.search.freshness_scorer import FreshnessScorer
+from lib.services.search.scorers.freshness_scorer import FreshnessScorer
 
 
 @pytest.fixture

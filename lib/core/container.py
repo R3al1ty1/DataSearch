@@ -75,13 +75,13 @@ class AppContainer:
     @cached_property
     def freshness_scorer(self):
         """Freshness scorer for relevance ranking."""
-        from lib.services.search.freshness_scorer import FreshnessScorer
+        from lib.services.search.scorers.freshness_scorer import FreshnessScorer
         return FreshnessScorer(halflife_days=self.settings.FRESHNESS_HALFLIFE_DAYS)
 
     @cached_property
     def relevance_ranker(self):
         """Relevance ranker with configurable strategy."""
-        from lib.services.search.relevance_ranker import RelevanceRanker
+        from lib.services.search.scorers.relevance_ranker import RelevanceRanker
         return RelevanceRanker(
             freshness_scorer=self.freshness_scorer,
             strategy=self.settings.RANKING_STRATEGY,

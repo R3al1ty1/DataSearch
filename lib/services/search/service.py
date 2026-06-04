@@ -17,7 +17,7 @@ from lib.services.datasets.schemas import (
     TopSearchResponse,
 )
 from lib.services.datasets.ml.embedder import EmbeddingService
-from lib.services.search.relevance_ranker import RelevanceRanker
+from lib.services.search.scorers.relevance_ranker import RelevanceRanker
 
 SEARCH_BUFFER_MULTIPLIER = 5
 

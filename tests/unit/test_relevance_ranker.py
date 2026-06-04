@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 
-from lib.services.search.freshness_scorer import FreshnessScorer
-from lib.services.search.relevance_ranker import RANKING_STRATEGIES, _RRF_K, RelevanceRanker
+from lib.services.search.scorers.freshness_scorer import FreshnessScorer
+from lib.services.search.scorers.relevance_ranker import RANKING_STRATEGIES, _RRF_K, RelevanceRanker
 
 
 def _make_dataset(static_score: float | None = None, source_updated_at=None, **kwargs):

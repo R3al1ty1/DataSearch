@@ -2,7 +2,7 @@ from uuid import UUID
 
 from lib.services.datasets.models import Dataset
 from lib.services.datasets.schemas import ScoreBreakdown
-from lib.services.search.freshness_scorer import FreshnessScorer
+from lib.services.search.scorers.freshness_scorer import FreshnessScorer
 
 # Linear interpolation strategies: (α_semantic, β_static, γ_freshness)
 RANKING_STRATEGIES: dict[str, tuple[float, float, float]] = {
