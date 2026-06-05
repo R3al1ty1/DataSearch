@@ -4,8 +4,8 @@ from collections import defaultdict
 from uuid import UUID
 
 import numpy as np
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from lib.core.uow import UnitOfWork
 from lib.services.static_scores.aggregator import CobbDouglasAggregator
 from lib.services.static_scores.components import DocsScorer, LegalScorer, ReprScorer, SocialScorer
 from lib.services.static_scores.constants import (
@@ -17,8 +17,7 @@ from lib.services.static_scores.constants import (
 
 
 class StaticScoreService:
-    def __init__(self, dataset_repo, logger: logging.Logger) -> None:
-        self._repo = dataset_repo
+    def __init__(self, logger: logging.Logger) -> None:
         self._logger = logger
         self._docs = DocsScorer()
         self._repr = ReprScorer()
@@ -26,8 +25,8 @@ class StaticScoreService:
         self._social = SocialScorer()
         self._aggregator = CobbDouglasAggregator()
 
-    async def compute_all(self, session: AsyncSession) -> int:
-        datasets = await self._repo.get_datasets_for_scoring(session)
+    async def compute_all(self, uow: UnitOfWork) -> int:
+        datasets = await uow.enrichment_logs.get_datasets_for_scoring()
         if not datasets:
             return 0
 
@@ -55,8 +54,7 @@ class StaticScoreService:
                 "static_score": self._aggregator.combine(docs, repr_, social, legal),
             }
 
-        updated = await self._repo.batch_update_static_scores(session, scores)
-        await self._repo.commit(session)
+        updated = await uow.enrichment_logs.batch_update_static_scores(scores)
         return updated
 
     def _social_score_for(self, ds, percentiles: dict) -> float:

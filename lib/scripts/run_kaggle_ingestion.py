@@ -19,9 +19,9 @@ async def test_kaggle_ingestion():
 
     container.db.init()
 
-    async with container.db._session_factory() as session:
+    async with container.uow() as uow:
         try:
-            count_before = await session.execute(
+            count_before = await uow.session.execute(
                 select(func.count(Dataset.id)).where(Dataset.source_name == 'kaggle')
             )
             total_before = count_before.scalar_one()
@@ -29,20 +29,20 @@ async def test_kaggle_ingestion():
 
             logger.info("Fetching latest 10 datasets from Kaggle API...")
             fetched, inserted = await container.kaggle_processor.fetch_latest(
-                session,
+                uow,
                 limit=10,
                 sort_by='updated'
             )
 
             logger.info(f"Fetch completed: {fetched} fetched, {inserted} inserted/updated")
 
-            count_after = await session.execute(
+            count_after = await uow.session.execute(
                 select(func.count(Dataset.id)).where(Dataset.source_name == 'kaggle')
             )
             total_after = count_after.scalar_one()
             logger.info(f"Kaggle datasets after: {total_after}")
 
-            result = await session.execute(
+            result = await uow.session.execute(
                 select(Dataset)
                 .where(Dataset.source_name == 'kaggle')
                 .order_by(Dataset.created_at.desc())

@@ -2,23 +2,27 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from lib.auth.models import User
 from lib.core.constants import UserRole
 from lib.core.container import container
 from lib.core.exceptions import AuthenticationError
+from lib.core.uow import UnitOfWork
 
 security = HTTPBearer()
+
+async def get_uow():
+    async with container.uow() as uow:
+        yield uow
 
 async def get_current_user(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    db: AsyncSession = Depends(container.db.get_session)
+    uow: UnitOfWork = Depends(get_uow, scope="function")
 ) -> User:
     """Dependency to get current authenticated user."""
     try:
-        user = await container.auth_service.get_current_user(db, credentials.credentials)
+        user = await container.auth_service.get_current_user(uow, credentials.credentials)
         return user
     except AuthenticationError as e:
         raise HTTPException(

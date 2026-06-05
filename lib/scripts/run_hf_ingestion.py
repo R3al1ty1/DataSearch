@@ -19,9 +19,9 @@ async def test_hf_ingestion():
 
     container.db.init()
 
-    async with container.db._session_factory() as session:
+    async with container.uow() as uow:
         try:
-            count_before = await session.execute(
+            count_before = await uow.session.execute(
                 select(func.count(Dataset.id)).where(Dataset.source_name == 'huggingface')
             )
             total_before = count_before.scalar_one()
@@ -29,20 +29,20 @@ async def test_hf_ingestion():
 
             logger.info("Fetching 10 latest datasets from HuggingFace...")
             fetched, inserted = await container.hf_processor.fetch_and_store(
-                session,
+                uow,
                 limit=10,
                 min_last_modified=None
             )
 
             logger.info(f"Fetch completed: {fetched} fetched, {inserted} inserted/updated")
 
-            count_after = await session.execute(
+            count_after = await uow.session.execute(
                 select(func.count(Dataset.id)).where(Dataset.source_name == 'huggingface')
             )
             total_after = count_after.scalar_one()
             logger.info(f"HuggingFace datasets after: {total_after}")
 
-            result = await session.execute(
+            result = await uow.session.execute(
                 select(Dataset)
                 .where(Dataset.source_name == 'huggingface')
                 .order_by(Dataset.created_at.desc())

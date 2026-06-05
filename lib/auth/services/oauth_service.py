@@ -1,13 +1,15 @@
 import logging
+from typing import TYPE_CHECKING
 
 import httpx
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from lib.auth.repository import SecurityEventRepository, UserRepository
 from lib.auth.services.auth_service import AuthResult
 from lib.auth.services.token_service import TokenService
 from lib.core.constants import UserRole
 from lib.core.exceptions import AuthenticationError
+
+if TYPE_CHECKING:
+    from lib.core.uow import UnitOfWork
 
 
 class OAuthService:
@@ -15,19 +17,15 @@ class OAuthService:
 
     def __init__(
         self,
-        user_repo: UserRepository,
-        security_event_repo: SecurityEventRepository,
         token_service: TokenService,
         logger: logging.Logger
     ):
-        self.user_repo = user_repo
-        self.security_event_repo = security_event_repo
         self.token_service = token_service
         self.logger = logger
 
     async def oauth_login_or_register(
         self,
-        session: AsyncSession,
+        uow: "UnitOfWork",
         provider: str,
         provider_id: str,
         email: str,
@@ -36,17 +34,10 @@ class OAuthService:
         user_agent: str | None = None
     ) -> AuthResult:
         """Login or register user via OAuth."""
-        user = await self.user_repo.get_by_oauth(session, provider, provider_id)
+        user = await uow.users.get_by_email(email)
 
         if not user:
-            existing = await self.user_repo.get_by_email(session, email)
-            if existing:
-                raise AuthenticationError(
-                    f"Email {email} is already registered with a password. Please login normally."
-                )
-
-            user = await self.user_repo.create_user(
-                session=session,
+            user = await uow.users.create_user(
                 email=email,
                 password_hash=None,
                 full_name=full_name,
@@ -54,31 +45,32 @@ class OAuthService:
                 oauth_provider=provider,
                 oauth_provider_id=provider_id,
             )
-            await session.commit()
 
-            await self.security_event_repo.log_event(
-                session=session,
+            await uow.security_events.log_event(
                 event_type="oauth_register",
                 user_id=user.id,
                 ip_address=ip_address,
                 user_agent=user_agent,
                 details={"provider": provider},
             )
-            await session.commit()
 
             self.logger.info(f"OAuth user registered: {email} ({provider})")
         else:
-            await self.user_repo.update_last_login(session, user.id)
+            if not user.is_active:
+                raise AuthenticationError("User account is inactive")
 
-            await self.security_event_repo.log_event(
-                session=session,
+            if not user.is_email_verified:
+                user.is_email_verified = True
+
+            await uow.users.update_last_login(user.id)
+
+            await uow.security_events.log_event(
                 event_type="oauth_login",
                 user_id=user.id,
                 ip_address=ip_address,
                 user_agent=user_agent,
                 details={"provider": provider},
             )
-            await session.commit()
 
             self.logger.info(f"OAuth user logged in: {email} ({provider})")
 
@@ -92,7 +84,7 @@ class OAuthService:
 
     async def yandex_token_login(
         self,
-        session: AsyncSession,
+        uow: "UnitOfWork",
         yandex_token: str,
         ip_address: str | None = None,
         user_agent: str | None = None,
@@ -113,7 +105,7 @@ class OAuthService:
         email: str = userinfo.get("default_email") or userinfo["emails"][0]
 
         return await self.oauth_login_or_register(
-            session=session,
+            uow=uow,
             provider="yandex",
             provider_id=str(userinfo["id"]),
             email=email,

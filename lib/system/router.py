@@ -2,14 +2,14 @@ import logging
 from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from lib.core.container import container
 from lib.core.constants import UserRole
 from lib.system.schemas import HealthResponse
-from lib.auth.dependencies import require_role
+from lib.auth.dependencies import get_uow, require_role
 from lib.auth.models import User
+from lib.core.uow import UnitOfWork
 
 router = APIRouter(tags=["System"])
 
@@ -28,11 +28,11 @@ class EmbeddingTaskRequest(BaseModel):
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check(
-    db: AsyncSession = Depends(container.db.get_session),
+    uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     """Performs a health check:"""
-    await db.execute(text("SELECT 1"))
+    await uow.session.execute(text("SELECT 1"))
 
     logger.info("Health check passed.")
 

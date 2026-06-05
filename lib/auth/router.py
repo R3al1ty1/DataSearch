@@ -3,12 +3,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from lib.auth.dependencies import (
     delete_refresh_cookie,
     get_current_active_user,
     get_ip_address,
+    get_uow,
     get_user_agent,
     set_refresh_cookie,
 )
@@ -24,6 +24,7 @@ from lib.auth.schemas import (
 from lib.auth.utils import oauth
 from lib.core.container import container
 from lib.core.exceptions import AuthenticationError
+from lib.core.uow import UnitOfWork
 
 router = APIRouter(tags=["Auth"])
 
@@ -32,12 +33,12 @@ async def register(
     request: Request,
     response: Response,
     body: RegisterRequest,
-    db: AsyncSession = Depends(container.db.get_session),
+    uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     try:
         result = await container.auth_service.register(
-            session=db,
+            uow=uow,
             email=body.email,
             password=body.password,
             full_name=body.full_name,
@@ -58,12 +59,12 @@ async def login(
     request: Request,
     response: Response,
     body: LoginRequest,
-    db: AsyncSession = Depends(container.db.get_session),
+    uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     try:
         result = await container.auth_service.login(
-            session=db,
+            uow=uow,
             email=body.email,
             password=body.password,
             ip_address=get_ip_address(request),
@@ -84,14 +85,14 @@ async def login(
 async def refresh_token(
     response: Response,
     refresh_token: str | None = Cookie(None),
-    db: AsyncSession = Depends(container.db.get_session),
+    uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     if not refresh_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing")
     try:
         tokens = await container.auth_service.refresh_token(
-            session=db,
+            uow=uow,
             refresh_token=refresh_token,
         )
         set_refresh_cookie(response, tokens.refresh_token)
@@ -106,13 +107,13 @@ async def logout(
     response: Response,
     current_user: Annotated[User, Depends(get_current_active_user)],
     refresh_token: str | None = Cookie(None),
-    db: AsyncSession = Depends(container.db.get_session),
+    uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
 
     await container.auth_service.logout(
-        session=db,
+        uow=uow,
         access_token=token,
         refresh_token=refresh_token,
         user_id=current_user.id,
@@ -135,7 +136,7 @@ async def google_oauth_init(request: Request) -> RedirectResponse:
 @router.get("/auth/oauth/google/callback", include_in_schema=False)
 async def google_oauth_callback(
     request: Request,
-    db: AsyncSession = Depends(container.db.get_session),
+    uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ) -> RedirectResponse:
     try:
@@ -143,7 +144,7 @@ async def google_oauth_callback(
         userinfo = token.get("userinfo") or await oauth.google.userinfo(token=token)
 
         result = await container.oauth_service.oauth_login_or_register(
-            session=db,
+            uow=uow,
             provider="google",
             provider_id=str(userinfo["sub"]),
             email=userinfo["email"],
@@ -157,7 +158,6 @@ async def google_oauth_callback(
 
     redirect = RedirectResponse(url=f"{container.settings.FRONTEND_URL}/dashboard")
     set_refresh_cookie(redirect, result.refresh_token)
-    redirect.headers["X-Access-Token"] = result.access_token
     return redirect
 
 @router.get("/auth/oauth/yandex", include_in_schema=False)
@@ -168,7 +168,7 @@ async def yandex_oauth_init(request: Request) -> RedirectResponse:
 @router.get("/auth/oauth/yandex/callback", include_in_schema=False)
 async def yandex_oauth_callback(
     request: Request,
-    db: AsyncSession = Depends(container.db.get_session),
+    uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ) -> RedirectResponse:
     try:
@@ -177,7 +177,7 @@ async def yandex_oauth_callback(
         email: str = userinfo.get("default_email") or userinfo["emails"][0]
 
         result = await container.oauth_service.oauth_login_or_register(
-            session=db,
+            uow=uow,
             provider="yandex",
             provider_id=str(userinfo["id"]),
             email=email,
@@ -191,7 +191,6 @@ async def yandex_oauth_callback(
 
     redirect = RedirectResponse(url=f"{container.settings.FRONTEND_URL}/dashboard")
     set_refresh_cookie(redirect, result.refresh_token)
-    redirect.headers["X-Access-Token"] = result.access_token
     return redirect
 
 @router.post("/auth/oauth/yandex/token", response_model=TokenResponse)
@@ -199,12 +198,12 @@ async def yandex_token_login(
     body: YandexTokenRequest,
     request: Request,
     response: Response,
-    db: AsyncSession = Depends(container.db.get_session),
+    uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ) -> TokenResponse:
     try:
         result = await container.oauth_service.yandex_token_login(
-            session=db,
+            uow=uow,
             yandex_token=body.yandex_token,
             ip_address=get_ip_address(request),
             user_agent=get_user_agent(request),

@@ -18,9 +18,9 @@ def generate_embeddings(batch_size: int = 100):
     logger.info(f"Starting embedding generation: batch_size={batch_size}")
 
     async def _process():
-        async with container.db.begin_session() as session:
+        async with container.uow() as uow:
             return await container.embedding_processor.process_batch(
-                session, batch_size
+                uow, batch_size
             )
 
     processed, failed = asyncio.run(_process())

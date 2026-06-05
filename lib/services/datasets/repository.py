@@ -26,14 +26,14 @@ from lib.services.datasets.schemas import (
 class DatasetRepository(BaseRepository[Dataset]):
     """Repository for dataset operations."""
 
-    def __init__(self):
-        super().__init__(Dataset)
+    def __init__(self, session: AsyncSession):
+        super().__init__(Dataset, session)
 
     async def get_by_external_id(
-        self, session: AsyncSession, source_name: str, external_id: str
+        self, source_name: str, external_id: str
     ) -> Dataset | None:
         """Gets dataset by source and external ID."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(Dataset).where(
                 and_(
                     Dataset.source_name == source_name,
@@ -43,7 +43,7 @@ class DatasetRepository(BaseRepository[Dataset]):
         )
         return result.scalar_one_or_none()
 
-    async def upsert(self, session: AsyncSession, dataset: Dataset) -> Dataset:
+    async def upsert(self, dataset: Dataset) -> Dataset:
         """Inserts or update dataset by (source_name, external_id)."""
         insert_values = self._model_to_dict(
             dataset, DatasetFieldsExclude.ON_INSERT
@@ -58,11 +58,11 @@ class DatasetRepository(BaseRepository[Dataset]):
             set_=update_values
         ).returning(Dataset)
 
-        result = await session.execute(stmt)
-        await session.flush()
+        result = await self.session.execute(stmt)
+        await self.session.flush()
         return result.scalar_one()
 
-    async def bulk_upsert(self, session: AsyncSession, datasets: list[Dataset]) -> int:
+    async def bulk_upsert(self, datasets: list[Dataset]) -> int:
         """Bulk inserts or updates datasets."""
         if not datasets:
             return 0
@@ -81,19 +81,18 @@ class DatasetRepository(BaseRepository[Dataset]):
             set_=update_fields
         )
 
-        result = await session.execute(stmt)
-        await session.flush()
+        result = await self.session.execute(stmt)
+        await self.session.flush()
         return result.rowcount
 
     async def get_pending_for_enrichment(
         self,
-        session: AsyncSession,
         source_name: str,
         limit: int = 100,
         max_attempts: int = 3
     ) -> list[Dataset]:
         """Gets datasets pending API enrichment for specific source."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(Dataset)
             .where(
                 and_(
@@ -116,10 +115,10 @@ class DatasetRepository(BaseRepository[Dataset]):
         return list(result.scalars().all())
 
     async def get_for_embedding_generation(
-        self, session: AsyncSession, limit: int = 100
+        self, limit: int = 100
     ) -> list[Dataset]:
         """Gets datasets ready for embedding generation."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(Dataset)
             .where(
                 and_(
@@ -134,9 +133,9 @@ class DatasetRepository(BaseRepository[Dataset]):
         )
         return list(result.scalars().all())
 
-    async def mark_enriching(self, session: AsyncSession, dataset_id: UUID) -> None:
+    async def mark_enriching(self, dataset_id: UUID) -> None:
         """Marks dataset as currently enriching."""
-        await session.execute(
+        await self.session.execute(
             update(Dataset)
             .where(Dataset.id == dataset_id)
             .values(
@@ -144,10 +143,10 @@ class DatasetRepository(BaseRepository[Dataset]):
                 enrichment_attempts=Dataset.enrichment_attempts + 1
             )
         )
-        await session.flush()
+        await self.session.flush()
 
     async def mark_enriched(
-        self, session: AsyncSession, dataset_id: UUID, embedding: list[float] | None = None
+        self, dataset_id: UUID, embedding: list[float] | None = None
     ) -> None:
         """Marks dataset as fully enriched."""
         values = {
@@ -157,18 +156,18 @@ class DatasetRepository(BaseRepository[Dataset]):
         if embedding is not None:
             values['embedding'] = embedding
 
-        await session.execute(
+        await self.session.execute(
             update(Dataset)
             .where(Dataset.id == dataset_id)
             .values(**values)
         )
-        await session.flush()
+        await self.session.flush()
 
     async def mark_failed(
-        self, session: AsyncSession, dataset_id: UUID, error_message: str
+        self, dataset_id: UUID, error_message: str
     ) -> None:
         """Marks dataset as failed enrichment."""
-        await session.execute(
+        await self.session.execute(
             update(Dataset)
             .where(Dataset.id == dataset_id)
             .values(
@@ -177,11 +176,11 @@ class DatasetRepository(BaseRepository[Dataset]):
                 is_active=False
             )
         )
-        await session.flush()
+        await self.session.flush()
 
-    async def count_by_source(self, session: AsyncSession, source_name: str) -> int:
+    async def count_by_source(self, source_name: str) -> int:
         """Counts datasets by source."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(func.count(Dataset.id)).where(
                 Dataset.source_name == source_name
             )
@@ -189,10 +188,10 @@ class DatasetRepository(BaseRepository[Dataset]):
         return result.scalar_one()
 
     async def count_by_status(
-        self, session: AsyncSession, source_name: str, status: EnrichmentStatus
+        self, source_name: str, status: EnrichmentStatus
     ) -> int:
         """Counts datasets by source and enrichment status."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(func.count(Dataset.id)).where(
                 and_(
                     Dataset.source_name == source_name,
@@ -202,26 +201,26 @@ class DatasetRepository(BaseRepository[Dataset]):
         )
         return result.scalar_one()
 
-    async def get_stats_by_source(self, session: AsyncSession, source_name: str) -> SourceStats:
+    async def get_stats_by_source(self, source_name: str) -> SourceStats:
         """Gets statistics for a specific source."""
-        total = await self.count_by_source(session, source_name)
+        total = await self.count_by_source(source_name)
         minimal = await self.count_by_status(
-            session, source_name, EnrichmentStatus.MINIMAL
+            source_name, EnrichmentStatus.MINIMAL
         )
         pending = await self.count_by_status(
-            session, source_name, EnrichmentStatus.PENDING
+            source_name, EnrichmentStatus.PENDING
         )
         enriching = await self.count_by_status(
-            session, source_name, EnrichmentStatus.ENRICHING
+            source_name, EnrichmentStatus.ENRICHING
         )
         enriched = await self.count_by_status(
-            session, source_name, EnrichmentStatus.ENRICHED
+            source_name, EnrichmentStatus.ENRICHED
         )
         failed = await self.count_by_status(
-            session, source_name, EnrichmentStatus.FAILED
+            source_name, EnrichmentStatus.FAILED
         )
         skipped = await self.count_by_status(
-            session, source_name, EnrichmentStatus.SKIPPED
+            source_name, EnrichmentStatus.SKIPPED
         )
 
         return SourceStats(
@@ -269,7 +268,6 @@ class DatasetRepository(BaseRepository[Dataset]):
 
     async def fts_search(
         self,
-        session: AsyncSession,
         query: str,
         filters: SearchFilters,
         limit: int,
@@ -302,12 +300,11 @@ class DatasetRepository(BaseRepository[Dataset]):
             .limit(limit)
         )
 
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         return [(row[0], float(row[1])) for row in result.all()]
 
     async def vector_search(
         self,
-        session: AsyncSession,
         query_embedding: list[float],
         filters: SearchFilters,
         limit: int,
@@ -338,16 +335,15 @@ class DatasetRepository(BaseRepository[Dataset]):
             .limit(limit)
         )
 
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         return [(row[0], float(row[1])) for row in result.all()]
 
     async def get_top_by_static_score(
         self,
-        session: AsyncSession,
         limit: int = 5,
     ) -> list[Dataset]:
         """Returns datasets with highest static_score."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(Dataset)
             .where(
                 and_(
@@ -365,12 +361,11 @@ class DatasetRepository(BaseRepository[Dataset]):
 class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
     """Repository for enrichment log operations."""
 
-    def __init__(self):
-        super().__init__(DatasetEnrichmentLog)
+    def __init__(self, session: AsyncSession):
+        super().__init__(DatasetEnrichmentLog, session)
 
     async def log_enrichment(
         self,
-        session: AsyncSession,
         dataset_id: UUID,
         stage: EnrichmentStage,
         result: EnrichmentResult,
@@ -393,13 +388,13 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
             worker_id=worker_id,
             task_id=task_id
         )
-        return await self.create(session, log)
+        return await self.create(log)
 
     async def get_logs_by_dataset(
-        self, session: AsyncSession, dataset_id: UUID, limit: int = 50
+        self, dataset_id: UUID, limit: int = 50
     ) -> list[DatasetEnrichmentLog]:
         """Get enrichment logs for specific dataset."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(DatasetEnrichmentLog)
             .where(DatasetEnrichmentLog.dataset_id == dataset_id)
             .order_by(DatasetEnrichmentLog.created_at.desc())
@@ -409,11 +404,10 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
 
     async def get_datasets_for_scoring(
         self,
-        session: AsyncSession,
     ) -> list[Dataset]:
         """Returns active enriched datasets with all fields needed for static scoring (embedding excluded)."""
         from sqlalchemy.orm import defer
-        result = await session.execute(
+        result = await self.session.execute(
             select(Dataset)
             .options(defer(Dataset.embedding))
             .where(
@@ -427,14 +421,13 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
 
     async def batch_update_static_scores(
         self,
-        session: AsyncSession,
         scores: dict[UUID, dict],
     ) -> int:
         """Batch updates static_score and component sub-scores for a set of datasets."""
         if not scores:
             return 0
 
-        await session.execute(
+        await self.session.execute(
             update(Dataset)
             .where(Dataset.id == bindparam('bid'))
             .values(
@@ -446,12 +439,11 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
             ),
             [{'bid': dataset_id, **score_dict} for dataset_id, score_dict in scores.items()],
         )
-        await session.flush()
+        await self.session.flush()
         return len(scores)
 
     async def get_failed_logs(
         self,
-        session: AsyncSession,
         since: datetime | None = None,
         limit: int = 100
     ) -> list[DatasetEnrichmentLog]:
@@ -467,16 +459,16 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
             DatasetEnrichmentLog.created_at.desc()
         ).limit(limit)
 
-        result = await session.execute(query)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_stats_by_stage_and_result(
-        self, session: AsyncSession, hours: int = 24
+        self, hours: int = 24
     ) -> list[EnrichmentStageStats]:
         """Get enrichment statistics grouped by stage and result."""
         since = datetime.utcnow() - timedelta(hours=hours)
 
-        result = await session.execute(
+        result = await self.session.execute(
             select(
                 DatasetEnrichmentLog.stage,
                 DatasetEnrichmentLog.result,
@@ -505,12 +497,12 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         ]
 
     async def get_top_errors(
-        self, session: AsyncSession, hours: int = 168, limit: int = 10
+        self, hours: int = 168, limit: int = 10
     ) -> list[ErrorStats]:
         """Get top error types in the last N hours."""
         since = datetime.utcnow() - timedelta(hours=hours)
 
-        result = await session.execute(
+        result = await self.session.execute(
             select(
                 DatasetEnrichmentLog.error_type,
                 func.count().label('error_count')
@@ -538,10 +530,10 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
         ]
 
     async def count_attempts_by_dataset(
-        self, session: AsyncSession, dataset_id: UUID, stage: EnrichmentStage
+        self, dataset_id: UUID, stage: EnrichmentStage
     ) -> int:
         """Count enrichment attempts for dataset and stage."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(func.count(DatasetEnrichmentLog.id)).where(
                 and_(
                     DatasetEnrichmentLog.dataset_id == dataset_id,

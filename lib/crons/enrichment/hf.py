@@ -19,9 +19,9 @@ def fetch_datasets(limit: int = 1000, days_back: int = 1):
     )
 
     async def _process():
-        async with container.db.begin_session() as session:
+        async with container.uow() as uow:
             return await container.hf_processor.fetch_and_store(
-                session,
+                uow,
                 limit=limit,
                 min_last_modified=min_date
             )

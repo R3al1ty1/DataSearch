@@ -1,7 +1,7 @@
 from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from lib.core.container import container
-from lib.services.datasets.repository import DatasetRepository
+from lib.core.uow import UnitOfWork
 from lib.services.datasets.ml.embedder import EmbeddingService
 
 class EmbeddingProcessor:
@@ -9,20 +9,16 @@ class EmbeddingProcessor:
 
     def __init__(
         self,
-        dataset_repo: DatasetRepository,
         embedder: EmbeddingService
     ):
-        self.dataset_repo = dataset_repo
         self.embedder = embedder
         self.logger = container.logger
 
     async def process_batch(
-        self, session: AsyncSession, batch_size: int = 100
+        self, uow: UnitOfWork, batch_size: int = 100
     ) -> tuple[int, int]:
         """Processes a batch of datasets to generate embeddings."""
-        datasets = await self.dataset_repo.get_for_embedding_generation(
-            session, limit=batch_size
-        )
+        datasets = await uow.datasets.get_for_embedding_generation(limit=batch_size)
 
         if not datasets:
             self.logger.info("No datasets found for embedding generation")
@@ -56,7 +52,7 @@ class EmbeddingProcessor:
             )
 
             return await self._save_embeddings(
-                session, dataset_ids, embeddings
+                uow, dataset_ids, embeddings
             )
 
         except Exception as e:
@@ -65,7 +61,7 @@ class EmbeddingProcessor:
 
     async def _save_embeddings(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         dataset_ids: list[UUID],
         embeddings: list[list[float]]
     ) -> tuple[int, int]:
@@ -75,8 +71,7 @@ class EmbeddingProcessor:
 
         for dataset_id, embedding in zip(dataset_ids, embeddings):
             try:
-                await self.dataset_repo.mark_enriched(
-                    session,
+                await uow.datasets.mark_enriched(
                     dataset_id,
                     embedding=embedding
                 )
@@ -88,7 +83,6 @@ class EmbeddingProcessor:
                 )
                 failed += 1
 
-        await self.dataset_repo.commit(session)
         self.logger.info(f"Batch complete: {processed} saved, {failed} failed")
 
         return processed, failed
