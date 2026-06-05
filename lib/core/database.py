@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -72,6 +73,14 @@ class DatabaseManager:
 
             finally:
                 await session.close()
+
+    @asynccontextmanager
+    async def begin_session(
+        self
+    ) -> AsyncGenerator[AsyncSession, None]:
+        """Yields an asynchronous database session as a context manager."""
+        async for session in self.get_session():
+            yield session
 
     @property
     def engine(self) -> AsyncEngine:

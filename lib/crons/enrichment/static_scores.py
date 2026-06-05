@@ -17,7 +17,7 @@ def compute_static_scores():
     logger.info("Starting static score computation")
 
     async def _run():
-        async with container.db.get_session() as session:
+        async with container.db.begin_session() as session:
             return await container.static_score_service.compute_all(session)
 
     updated = asyncio.run(_run())

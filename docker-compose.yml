@@ -26,7 +26,7 @@ services:
     env_file:
       - .env
     environment:
-      - SENTENCE_TRANSFORMERS_HOME=/app/models_cache
+      SENTENCE_TRANSFORMERS_HOME: /app/models_cache
     depends_on:
       - db
       - redis
@@ -47,7 +47,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s

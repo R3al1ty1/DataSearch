@@ -15,7 +15,7 @@ def seed_initial(batch_size: int = 1000, force_redownload: bool = False):
     )
 
     async def _process():
-        async with container.db.get_session() as session:
+        async with container.db.begin_session() as session:
             return await container.kaggle_processor.seed_from_csv(
                 session,
                 batch_size=batch_size,
@@ -40,7 +40,7 @@ def enrich_pending(batch_size: int = 50):
     logger.info(f"Starting Kaggle enrichment: batch_size={batch_size}")
 
     async def _process():
-        async with container.db.get_session() as session:
+        async with container.db.begin_session() as session:
             return await container.kaggle_processor.enrich_pending(
                 session, batch_size=batch_size
             )
@@ -65,7 +65,7 @@ def fetch_latest(limit: int = 100, sort_by: str = 'updated'):
     )
 
     async def _process():
-        async with container.db.get_session() as session:
+        async with container.db.begin_session() as session:
             return await container.kaggle_processor.fetch_latest(
                 session,
                 limit=limit,
