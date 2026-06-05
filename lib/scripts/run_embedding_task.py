@@ -2,9 +2,15 @@
 Test script for embedding generation.
 
 Usage:
-    uv run python lib/scripts/test_embedding_task.py
+    uv run python -m lib.scripts.run_embedding_task
 """
 import asyncio
+import os
+
+os.environ.setdefault('POSTGRES_HOST', 'localhost')
+os.environ.setdefault('POSTGRES_PORT', '5434')
+os.environ.setdefault('POSTGRES_DB', 'datasearch_db')
+os.environ['DEBUG'] = 'false'
 
 from lib.core.container import container
 
@@ -13,7 +19,7 @@ async def check_datasets_status():
     """Check datasets needing embeddings and overall stats."""
     dataset_repo = container.dataset_repo
 
-    async with container.db.get_session() as session:
+    async with container.db.begin_session() as session:
         datasets = await dataset_repo.get_for_embedding_generation(
             session, limit=1000
         )
@@ -36,22 +42,28 @@ async def test_embedding_processor():
 
     processor = EmbeddingProcessor(
         dataset_repo=container.dataset_repo,
-        embedder=container.embedder,
-        logger=container.logger
+        embedder=container.embedder
     )
 
-    async with container.db.get_session() as session:
+    async with container.db.begin_session() as session:
         processed, failed = await processor.process_batch(session, batch_size=5)
         print(f"Processed: {processed}, Failed: {failed}")
 
 
-def test_celery_task():
-    """Test Celery task."""
-    from lib.crons.enrich import generate_embeddings
+async def main():
+    container.db.init()
 
-    print("\n=== Testing Celery Task ===")
-    result = generate_embeddings(batch_size=10)
-    print(f"Result: {result}")
+    try:
+        print("\n[1] Initial Status")
+        await check_datasets_status()
+
+        print("\n[2] Testing Processor")
+        await test_embedding_processor()
+
+        print("\n[3] Final Status")
+        await check_datasets_status()
+    finally:
+        await container.db.close()
 
 
 if __name__ == "__main__":
@@ -59,14 +71,4 @@ if __name__ == "__main__":
     print("EMBEDDING GENERATION TEST")
     print("=" * 60)
 
-    print("\n[1] Initial Status")
-    asyncio.run(check_datasets_status())
-
-    print("\n[2] Testing Processor")
-    asyncio.run(test_embedding_processor())
-
-    print("\n[3] Testing Celery Task")
-    test_celery_task()
-
-    print("\n[4] Final Status")
-    asyncio.run(check_datasets_status())
+    asyncio.run(main())
