@@ -2,6 +2,11 @@ import logging
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from lib.services.datasets.ml.exceptions import (
+    EmbeddingEncodingError,
+    EmbeddingModelLoadError,
+)
+
 class EmbeddingService:
     """
     Service for computing text embeddings using sentence-transformers.
@@ -62,7 +67,7 @@ class EmbeddingService:
 
         except Exception as e:
             self._logger.error(f"Encoding failed for {len(texts)} texts: {e}")
-            raise
+            raise EmbeddingEncodingError(len(texts), str(e)) from e
 
     def compute_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
         """Computes cosine similarity between two embeddings."""
@@ -118,4 +123,4 @@ class EmbeddingService:
 
         except Exception as e:
             self._logger.error(f"Failed to load model {self.model_name}: {e}")
-            raise RuntimeError(f"Cannot load embedding model: {e}") from e
+            raise EmbeddingModelLoadError(self.model_name, str(e)) from e

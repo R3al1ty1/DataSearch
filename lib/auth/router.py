@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 from fastapi.responses import RedirectResponse
 
 from lib.auth.dependencies import (
@@ -12,6 +12,7 @@ from lib.auth.dependencies import (
     get_user_agent,
     set_refresh_cookie,
 )
+from lib.auth.exceptions import AuthenticationError, MissingRefreshToken
 from lib.auth.models import User
 from lib.auth.schemas import (
     AuthResponse,
@@ -23,10 +24,10 @@ from lib.auth.schemas import (
 )
 from lib.auth.utils import oauth
 from lib.core.container import container
-from lib.core.exceptions import AuthenticationError
+from lib.core.openapi import COMMON_ERROR_RESPONSES
 from lib.core.uow import UnitOfWork
 
-router = APIRouter(tags=["Auth"])
+router = APIRouter(tags=["Auth"], responses=COMMON_ERROR_RESPONSES)
 
 @router.post("/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 async def register(
@@ -36,23 +37,19 @@ async def register(
     uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
-    try:
-        result = await container.auth_service.register(
-            uow=uow,
-            email=body.email,
-            password=body.password,
-            full_name=body.full_name,
-            ip_address=get_ip_address(request),
-            user_agent=get_user_agent(request),
-        )
-        set_refresh_cookie(response, result.refresh_token)
-        return AuthResponse(
-            user=UserResponse.model_validate(result.user),
-            access_token=result.access_token,
-        )
-    except AuthenticationError as e:
-        logger.warning(f"Registration failed: {e}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    result = await container.auth_service.register(
+        uow=uow,
+        email=body.email,
+        password=body.password,
+        full_name=body.full_name,
+        ip_address=get_ip_address(request),
+        user_agent=get_user_agent(request),
+    )
+    set_refresh_cookie(response, result.refresh_token)
+    return AuthResponse(
+        user=UserResponse.model_validate(result.user),
+        access_token=result.access_token,
+    )
 
 @router.post("/auth/login", response_model=AuthResponse)
 async def login(
@@ -62,24 +59,18 @@ async def login(
     uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
-    try:
-        result = await container.auth_service.login(
-            uow=uow,
-            email=body.email,
-            password=body.password,
-            ip_address=get_ip_address(request),
-            user_agent=get_user_agent(request),
-        )
-        set_refresh_cookie(response, result.refresh_token)
-        return AuthResponse(
-            user=UserResponse.model_validate(result.user),
-            access_token=result.access_token,
-        )
-    except AuthenticationError as e:
-        logger.warning(f"Login failed: {e}")
-        if "rate limit" in str(e).lower():
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    result = await container.auth_service.login(
+        uow=uow,
+        email=body.email,
+        password=body.password,
+        ip_address=get_ip_address(request),
+        user_agent=get_user_agent(request),
+    )
+    set_refresh_cookie(response, result.refresh_token)
+    return AuthResponse(
+        user=UserResponse.model_validate(result.user),
+        access_token=result.access_token,
+    )
 
 @router.post("/auth/refresh", response_model=TokenResponse)
 async def refresh_token(
@@ -89,17 +80,13 @@ async def refresh_token(
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ):
     if not refresh_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing")
-    try:
-        tokens = await container.auth_service.refresh_token(
-            uow=uow,
-            refresh_token=refresh_token,
-        )
-        set_refresh_cookie(response, tokens.refresh_token)
-        return TokenResponse(access_token=tokens.access_token)
-    except AuthenticationError as e:
-        logger.warning(f"Token refresh failed: {e}")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise MissingRefreshToken()
+    tokens = await container.auth_service.refresh_token(
+        uow=uow,
+        refresh_token=refresh_token,
+    )
+    set_refresh_cookie(response, tokens.refresh_token)
+    return TokenResponse(access_token=tokens.access_token)
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
@@ -201,16 +188,12 @@ async def yandex_token_login(
     uow: UnitOfWork = Depends(get_uow, scope="function"),
     logger: logging.Logger = Depends(container.logger_manager.get_logger)
 ) -> TokenResponse:
-    try:
-        result = await container.oauth_service.yandex_token_login(
-            uow=uow,
-            yandex_token=body.yandex_token,
-            ip_address=get_ip_address(request),
-            user_agent=get_user_agent(request),
-        )
-    except AuthenticationError as e:
-        logger.error(f"Yandex token login failed: {e}")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    result = await container.oauth_service.yandex_token_login(
+        uow=uow,
+        yandex_token=body.yandex_token,
+        ip_address=get_ip_address(request),
+        user_agent=get_user_agent(request),
+    )
 
     set_refresh_cookie(response, result.refresh_token)
     return TokenResponse(access_token=result.access_token)

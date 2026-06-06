@@ -3,6 +3,7 @@ import asyncio
 from celery import shared_task
 
 from lib.core.container import container
+from lib.core.task_errors import log_task_error, task_error_result
 
 
 @shared_task(name="healthcare.refresh_catalog")
@@ -25,7 +26,12 @@ def refresh_catalog(
                 include_data_dictionaries=include_data_dictionaries,
             )
 
-    fetched, saved = asyncio.run(_process())
+    try:
+        fetched, saved = asyncio.run(_process())
+    except Exception as exc:
+        log_task_error(logger, "Data.Healthcare.gov refresh", exc)
+        return task_error_result("healthcare.refresh_catalog", exc)
+
     logger.info(
         f"Data.Healthcare.gov refresh completed: {fetched} fetched, {saved} saved"
     )

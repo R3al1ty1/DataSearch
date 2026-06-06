@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from celery import shared_task
 
 from lib.core.container import container
+from lib.core.task_errors import log_task_error, task_error_result
 
 
 @shared_task(name="datagov.fetch_datasets")
@@ -36,7 +37,12 @@ def fetch_datasets(
                 query=query,
             )
 
-    fetched, saved = asyncio.run(_process())
+    try:
+        fetched, saved = asyncio.run(_process())
+    except Exception as exc:
+        log_task_error(logger, "Data.gov fetch", exc)
+        return task_error_result("datagov.fetch_datasets", exc)
+
     logger.info(f"Data.gov fetch completed: {fetched} fetched, {saved} saved")
 
     return {

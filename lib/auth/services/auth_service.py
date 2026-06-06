@@ -11,14 +11,15 @@ from lib.auth.utils import (
     validate_password,
     verify_password,
 )
-from lib.core.config import Settings
-from lib.core.constants import UserRole
-from lib.core.exceptions import (
+from lib.auth.exceptions import (
     InvalidCredentials,
     TokenBlacklisted,
+    TokenExpired,
     TokenInvalid,
     UserAlreadyExists,
 )
+from lib.core.config import Settings
+from lib.core.constants import UserRole
 from lib.core.uow import UnitOfWork
 
 
@@ -200,8 +201,8 @@ class AuthService:
         if refresh_token:
             try:
                 await self.token_service.blacklist_token(refresh_token)
-            except Exception:
-                pass
+            except (TokenExpired, TokenInvalid, KeyError) as exc:
+                self.logger.warning(f"Failed to parse refresh token during logout: {exc}")
 
         await uow.security_events.log_event(
             event_type="logout",

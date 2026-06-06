@@ -4,6 +4,7 @@ import os
 from sqlalchemy import func, select
 
 from lib.core.container import container
+from lib.core.exceptions import DataSearchError
 from lib.services.datasets.models import Dataset
 
 os.environ.setdefault('POSTGRES_HOST', 'localhost')
@@ -91,6 +92,14 @@ async def test_healthcare_ingestion():
 
             logger.info("\n=== Test completed successfully ===")
 
+        except DataSearchError as e:
+            logger.error(
+                "Domain error during test: "
+                f"error_code={e.error_code.value}, message={e.message}, "
+                f"details={e.details}",
+                exc_info=True,
+            )
+            raise
         except Exception as e:
             logger.error(f"Error during test: {e}", exc_info=True)
             raise

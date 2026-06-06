@@ -3,6 +3,7 @@ import asyncio
 from celery import shared_task
 
 from lib.core.container import container
+from lib.core.task_errors import log_task_error, task_error_result
 
 
 @shared_task(name="enrich.generate_embeddings")
@@ -23,10 +24,14 @@ def generate_embeddings(batch_size: int = 100):
                 uow, batch_size
             )
 
-    processed, failed = asyncio.run(_process())
+    try:
+        processed, failed = asyncio.run(_process())
+    except Exception as exc:
+        log_task_error(logger, "Embedding generation", exc)
+        return task_error_result("enrich.generate_embeddings", exc)
+
     logger.info(
         f"Embedding generation completed: "
         f"{processed} processed, {failed} failed"
     )
-
     return {"processed": processed, "failed": failed}

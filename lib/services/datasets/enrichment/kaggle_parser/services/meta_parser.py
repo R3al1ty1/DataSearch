@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 import pandas as pd
+from pydantic import ValidationError
 
 from lib.core.container import container
 from lib.services.datasets.schemas import KaggleMetaDatasetDTO
@@ -211,7 +212,7 @@ class MetaKaggleParser:
             try:
                 dto = KaggleMetaDatasetDTO(**row.to_dict())
                 dtos.append(dto)
-            except Exception as e:
+            except ValidationError as e:
                 dataset_id = row.get(MetaKaggleConsts.ID_COLUMN, 'unknown')
                 self._logger.error(f"Failed to parse dataset {dataset_id}: {e}")
 

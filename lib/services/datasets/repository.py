@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, bindparam, case, column, func, literal_column, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.inspection import inspect
 
@@ -21,6 +22,7 @@ from lib.services.datasets.schemas import (
     SearchFilters,
     SourceStats,
 )
+from lib.services.datasets.exceptions import DatasetConflict
 
 
 class DatasetRepository(BaseRepository[Dataset]):
@@ -28,6 +30,14 @@ class DatasetRepository(BaseRepository[Dataset]):
 
     def __init__(self, session: AsyncSession):
         super().__init__(Dataset, session)
+
+    async def create(self, entity: Dataset) -> Dataset:
+        try:
+            return await super().create(entity)
+        except IntegrityError as exc:
+            if self._is_unique_dataset_conflict(exc):
+                raise DatasetConflict(entity.source_name, entity.external_id) from exc
+            raise
 
     async def get_by_external_id(
         self, source_name: str, external_id: str
@@ -244,6 +254,9 @@ class DatasetRepository(BaseRepository[Dataset]):
             for col in mapper.columns
             if col.key not in exclude_fields
         }
+
+    def _is_unique_dataset_conflict(self, exc: IntegrityError) -> bool:
+        return "idx_unique_external_dataset" in str(exc.orig)
 
     def _get_update_fields_from_model(
         self, dataset: Dataset, exclude_fields: set[str]

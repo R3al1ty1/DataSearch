@@ -2,6 +2,7 @@ import asyncio
 from typing import AsyncGenerator
 
 import httpx
+from pydantic import ValidationError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from lib.core.constants import ExternalAPIUrls
@@ -111,7 +112,7 @@ class DataHealthcareClient:
     def _parse_item(self, item: dict) -> DataHealthcareDatasetDTO | None:
         try:
             return DataHealthcareDatasetDTO.model_validate(item)
-        except Exception as e:
+        except ValidationError as e:
             item_id = item.get("identifier", "unknown")
             self._logger.error(f"Failed to parse Data.Healthcare.gov dataset {item_id}: {e}")
             return None

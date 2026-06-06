@@ -7,11 +7,13 @@ from pydantic import BaseModel, Field
 from lib.core.container import container
 from lib.core.constants import UserRole
 from lib.system.schemas import HealthResponse
+from lib.system.exceptions import TaskQueueError
 from lib.auth.dependencies import get_uow, require_role
 from lib.auth.models import User
+from lib.core.openapi import COMMON_ERROR_RESPONSES
 from lib.core.uow import UnitOfWork
 
-router = APIRouter(tags=["System"])
+router = APIRouter(tags=["System"], responses=COMMON_ERROR_RESPONSES)
 
 
 class TaskTriggerResponse(BaseModel):
@@ -69,8 +71,4 @@ async def trigger_embedding_generation(
         )
     except Exception as e:
         logger.error(f"Failed to trigger embedding generation: {e}")
-        return TaskTriggerResponse(
-            task_name="enrich.generate_embeddings",
-            status="error",
-            message=str(e)
-        )
+        raise TaskQueueError("enrich.generate_embeddings", str(e)) from e

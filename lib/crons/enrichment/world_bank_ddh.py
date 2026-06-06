@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from celery import shared_task
 
 from lib.core.container import container
+from lib.core.task_errors import log_task_error, task_error_result
 
 
 @shared_task(name="world_bank_ddh.fetch_datasets")
@@ -33,7 +34,12 @@ def fetch_datasets(
                 min_updated=min_updated,
             )
 
-    fetched, saved = asyncio.run(_process())
+    try:
+        fetched, saved = asyncio.run(_process())
+    except Exception as exc:
+        log_task_error(logger, "World Bank DDH fetch", exc)
+        return task_error_result("world_bank_ddh.fetch_datasets", exc)
+
     logger.info(f"World Bank DDH fetch completed: {fetched} fetched, {saved} saved")
 
     return {

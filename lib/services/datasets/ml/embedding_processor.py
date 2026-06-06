@@ -3,6 +3,7 @@ from uuid import UUID
 from lib.core.container import container
 from lib.core.uow import UnitOfWork
 from lib.services.datasets.ml.embedder import EmbeddingService
+from lib.services.datasets.ml.exceptions import EmbeddingError, EmbeddingPersistenceError
 
 class EmbeddingProcessor:
     """Handles batch processing of dataset embeddings."""
@@ -55,7 +56,7 @@ class EmbeddingProcessor:
                 uow, dataset_ids, embeddings
             )
 
-        except Exception as e:
+        except EmbeddingError as e:
             self.logger.error(f"Batch encoding failed: {e}")
             return 0, len(dataset_metadata)
 
@@ -78,9 +79,8 @@ class EmbeddingProcessor:
                 processed += 1
 
             except Exception as e:
-                self.logger.error(
-                    f"Error saving embedding for {dataset_id}: {e}"
-                )
+                error = EmbeddingPersistenceError(str(dataset_id), str(e))
+                self.logger.error(f"Error saving embedding for {dataset_id}: {error}")
                 failed += 1
 
         self.logger.info(f"Batch complete: {processed} saved, {failed} failed")

@@ -3,6 +3,7 @@ import asyncio
 from celery import shared_task
 
 from lib.core.container import container
+from lib.core.task_errors import log_task_error, task_error_result
 
 
 @shared_task(name="kaggle.seed_initial")
@@ -22,7 +23,12 @@ def seed_initial(batch_size: int = 1000, force_redownload: bool = False):
                 force_redownload=force_redownload
             )
 
-    processed, inserted = asyncio.run(_process())
+    try:
+        processed, inserted = asyncio.run(_process())
+    except Exception as exc:
+        log_task_error(logger, "Kaggle seed", exc)
+        return task_error_result("kaggle.seed_initial", exc)
+
     logger.info(
         f"Kaggle seed completed: {processed} processed, {inserted} saved"
     )
@@ -45,7 +51,12 @@ def enrich_pending(batch_size: int = 50):
                 uow, batch_size=batch_size
             )
 
-    enriched, failed = asyncio.run(_process())
+    try:
+        enriched, failed = asyncio.run(_process())
+    except Exception as exc:
+        log_task_error(logger, "Kaggle enrichment", exc)
+        return task_error_result("kaggle.enrich_pending", exc)
+
     logger.info(
         f"Kaggle enrichment completed: {enriched} enriched, {failed} failed"
     )
@@ -72,7 +83,12 @@ def fetch_latest(limit: int = 100, sort_by: str = 'updated'):
                 sort_by=sort_by
             )
 
-    processed, inserted = asyncio.run(_process())
+    try:
+        processed, inserted = asyncio.run(_process())
+    except Exception as exc:
+        log_task_error(logger, "Kaggle latest fetch", exc)
+        return task_error_result("kaggle.fetch_latest", exc)
+
     logger.info(
         f"Kaggle latest fetch completed: {processed} processed, {inserted} saved"
     )

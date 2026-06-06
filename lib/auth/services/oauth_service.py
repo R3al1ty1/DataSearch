@@ -4,8 +4,8 @@ import httpx
 
 from lib.auth.services.auth_service import AuthResult
 from lib.auth.services.token_service import TokenService
+from lib.auth.exceptions import AccountInactive, TokenInvalid
 from lib.core.constants import UserRole
-from lib.core.exceptions import AuthenticationError
 from lib.core.uow import UnitOfWork
 
 
@@ -54,7 +54,7 @@ class OAuthService:
             self.logger.info(f"OAuth user registered: {email} ({provider})")
         else:
             if not user.is_active:
-                raise AuthenticationError("User account is inactive")
+                raise AccountInactive()
 
             if not user.is_email_verified:
                 user.is_email_verified = True
@@ -96,7 +96,7 @@ class OAuthService:
             )
 
         if r.status_code != 200:
-            raise AuthenticationError("Invalid Yandex token")
+            raise TokenInvalid()
 
         userinfo = r.json()
         email: str = userinfo.get("default_email") or userinfo["emails"][0]

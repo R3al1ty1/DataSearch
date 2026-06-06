@@ -2,8 +2,8 @@ import re
 
 from passlib.context import CryptContext
 
+from lib.auth.exceptions import PasswordValidationError
 from lib.core.constants import AuthConstants
-from lib.core.exceptions import PasswordValidationError
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

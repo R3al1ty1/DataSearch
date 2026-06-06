@@ -3,9 +3,9 @@ from uuid import UUID
 
 from jose import JWTError, jwt
 
+from lib.auth.exceptions import TokenExpired, TokenInvalid
 from lib.core.config import Settings
 from lib.core.constants import UserRole
-from lib.core.exceptions import TokenExpired, TokenInvalid
 
 
 def create_access_token(

@@ -2,16 +2,18 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import RedirectResponse
 
 from lib.auth.dependencies import get_current_active_user, get_uow
 from lib.auth.models import User
 from lib.core.container import container
+from lib.core.openapi import COMMON_ERROR_RESPONSES
 from lib.core.uow import UnitOfWork
+from lib.services.datasets.exceptions import DatasetNotFound
 from lib.services.datasets.schemas import ClickRequest, SearchRequest, SearchResponse, TopSearchResponse
 
-router = APIRouter(tags=["Search"])
+router = APIRouter(tags=["Search"], responses=COMMON_ERROR_RESPONSES)
 
 
 @router.post("/search", response_model=SearchResponse)
@@ -50,7 +52,7 @@ async def record_click(
     """Records a click event when a user selects a search result."""
     dataset = await uow.datasets.get_by_id(body.dataset_id)
     if not dataset:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+        raise DatasetNotFound(body.dataset_id)
 
     await container.search_service.record_click(
         uow=uow,
@@ -74,7 +76,7 @@ async def visit_dataset(
     dataset = await uow.datasets.get_by_id(dataset_id)
 
     if not dataset:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+        raise DatasetNotFound(dataset_id)
 
     if search_log_id is not None and position is not None:
         await container.search_service.record_click(

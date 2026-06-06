@@ -1,7 +1,7 @@
 import logging
 
 from lib.core.constants import AuthConstants
-from lib.core.exceptions import RateLimitExceeded
+from lib.auth.exceptions import RateLimitExceeded
 from lib.core.redis_auth import RedisAuthManager
 
 
