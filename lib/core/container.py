@@ -78,6 +78,14 @@ class AppContainer:
         return ZenodoClient()
 
     @cached_property
+    def world_bank_ddh_client(self):
+        """World Bank Data Catalog API client."""
+        from lib.services.datasets.enrichment.world_bank_ddh_parser import (
+            WorldBankDDHClient,
+        )
+        return WorldBankDDHClient()
+
+    @cached_property
     def freshness_scorer(self):
         """Freshness scorer for relevance ranking."""
         from lib.services.search.scorers.freshness_scorer import FreshnessScorer
@@ -144,6 +152,16 @@ class AppContainer:
         from lib.services.datasets.enrichment.zenodo_parser import ZenodoProcessor
         return ZenodoProcessor(
             client=self.zenodo_client,
+        )
+
+    @cached_property
+    def world_bank_ddh_processor(self):
+        """World Bank Data Catalog processor."""
+        from lib.services.datasets.enrichment.world_bank_ddh_parser import (
+            WorldBankDDHProcessor,
+        )
+        return WorldBankDDHProcessor(
+            client=self.world_bank_ddh_client,
         )
 
     @cached_property

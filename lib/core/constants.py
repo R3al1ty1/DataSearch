@@ -30,6 +30,7 @@ class ExternalAPIUrls:
     DATA_HEALTHCARE_GOV_CATALOG = "https://data.healthcare.gov/data.json"
     DATA_HEALTHCARE_GOV_DATASET = "https://data.healthcare.gov/dataset"
     ZENODO_RECORDS = "https://zenodo.org/api/records"
+    WORLD_BANK_DDH = "https://ddh-openapi.worldbank.org"
 
 class HuggingFaceTagPrefixes:
     """Prefixes for HuggingFace tags."""

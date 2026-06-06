@@ -15,6 +15,7 @@ celery_app = Celery(
         "lib.crons.enrichment.healthcare",
         "lib.crons.enrichment.datagov",
         "lib.crons.enrichment.zenodo",
+        "lib.crons.enrichment.world_bank_ddh",
         "lib.crons.enrichment.static_scores",
     ]
 )
@@ -65,6 +66,11 @@ celery_app.conf.beat_schedule = {
     },
     'fetch-zenodo-datasets-daily': {
         'task': 'zenodo.fetch_datasets',
+        'schedule': 86400.0,
+        'args': (1000, 1, 100)
+    },
+    'fetch-world-bank-ddh-datasets-daily': {
+        'task': 'world_bank_ddh.fetch_datasets',
         'schedule': 86400.0,
         'args': (1000, 1, 100)
     },

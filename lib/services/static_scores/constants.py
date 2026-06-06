@@ -70,6 +70,7 @@ SOURCE_AVAILABLE_SIGNALS: dict[str, frozenset[str]] = {
     "kaggle": frozenset({"downloads", "views", "likes"}),
     "data_healthcare_gov": frozenset(),
     "zenodo": frozenset({"downloads", "views"}),
+    "world_bank_ddh": frozenset({"downloads"}),
 }
 ALL_SIGNALS = frozenset({"downloads", "views", "likes"})
 
