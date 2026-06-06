@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     HF_TOKEN: str | None = None
     KAGGLE_USERNAME: str | None = None
     KAGGLE_KEY: str | None = None
+    DATAGOV_API_KEY: str | None = None
     ZENODO_ACCESS_TOKEN: str | None = None
 
     # JWT settings

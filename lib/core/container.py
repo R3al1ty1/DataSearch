@@ -66,6 +66,12 @@ class AppContainer:
         return DataHealthcareClient()
 
     @cached_property
+    def datagov_client(self):
+        """Data.gov Catalog API client."""
+        from lib.services.datasets.enrichment.datagov_parser import DataGovClient
+        return DataGovClient()
+
+    @cached_property
     def zenodo_client(self):
         """Zenodo API client."""
         from lib.services.datasets.enrichment.zenodo_parser import ZenodoClient
@@ -122,6 +128,14 @@ class AppContainer:
         )
         return DataHealthcareProcessor(
             client=self.data_healthcare_client,
+        )
+
+    @cached_property
+    def datagov_processor(self):
+        """Data.gov processor."""
+        from lib.services.datasets.enrichment.datagov_parser import DataGovProcessor
+        return DataGovProcessor(
+            client=self.datagov_client,
         )
 
     @cached_property

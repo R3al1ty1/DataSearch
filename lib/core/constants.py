@@ -26,6 +26,7 @@ class ExternalAPIUrls:
     """External API base URLs."""
     HUGGINGFACE_DATASETS = "https://huggingface.co/api/datasets"
     KAGGLE_API = "https://www.kaggle.com/api/v1"
+    DATAGOV_CATALOG_SEARCH = "https://catalog.data.gov/search"
     DATA_HEALTHCARE_GOV_CATALOG = "https://data.healthcare.gov/data.json"
     DATA_HEALTHCARE_GOV_DATASET = "https://data.healthcare.gov/dataset"
     ZENODO_RECORDS = "https://zenodo.org/api/records"
