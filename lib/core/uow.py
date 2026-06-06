@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from types import TracebackType
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -13,7 +15,7 @@ class UnitOfWork:
         self._session_factory = session_factory
         self.session: AsyncSession | None = None
 
-    async def __aenter__(self) -> "UnitOfWork":
+    async def __aenter__(self) -> UnitOfWork:
         self.session = self._session_factory()
         self.users = UserRepository(self.session)
         self.security_events = SecurityEventRepository(self.session)
@@ -21,6 +23,7 @@ class UnitOfWork:
         self.search_logs = SearchLogRepository(self.session)
         self.clicks = ClickRepository(self.session)
         self.enrichment_logs = EnrichmentLogRepository(self.session)
+
         return self
 
     async def __aexit__(

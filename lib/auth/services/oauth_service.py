@@ -1,5 +1,4 @@
 import logging
-from typing import TYPE_CHECKING
 
 import httpx
 
@@ -7,9 +6,7 @@ from lib.auth.services.auth_service import AuthResult
 from lib.auth.services.token_service import TokenService
 from lib.core.constants import UserRole
 from lib.core.exceptions import AuthenticationError
-
-if TYPE_CHECKING:
-    from lib.core.uow import UnitOfWork
+from lib.core.uow import UnitOfWork
 
 
 class OAuthService:
@@ -25,7 +22,7 @@ class OAuthService:
 
     async def oauth_login_or_register(
         self,
-        uow: "UnitOfWork",
+        uow: UnitOfWork,
         provider: str,
         provider_id: str,
         email: str,
@@ -84,7 +81,7 @@ class OAuthService:
 
     async def yandex_token_login(
         self,
-        uow: "UnitOfWork",
+        uow: UnitOfWork,
         yandex_token: str,
         ip_address: str | None = None,
         user_agent: str | None = None,

@@ -12,7 +12,19 @@ from lib.core.base_model import Base, TimestampMixin, UUIDMixin
 class DatasetFieldsExclude:
     """Fields to exclude during upsert operations."""
     ON_INSERT = {'id', 'created_at', 'updated_at'}
-    ON_UPDATE = {'id', 'created_at', 'updated_at', 'enrichment_attempts'}
+    ON_UPDATE = {
+        'id',
+        'created_at',
+        'updated_at',
+        'enrichment_attempts',
+        'embedding',
+        'static_score',
+        'docs_score',
+        'repr_score',
+        'social_score',
+        'legal_score',
+        'last_enriched_at',
+    }
 
 class EnrichmentStatus(str, Enum):
     """Dataset enrichment status."""

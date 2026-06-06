@@ -58,6 +58,20 @@ class AppContainer:
         return KaggleClient()
 
     @cached_property
+    def data_healthcare_client(self):
+        """Data.Healthcare.gov API client."""
+        from lib.services.datasets.enrichment.healthcare_parser import (
+            DataHealthcareClient,
+        )
+        return DataHealthcareClient()
+
+    @cached_property
+    def zenodo_client(self):
+        """Zenodo API client."""
+        from lib.services.datasets.enrichment.zenodo_parser import ZenodoClient
+        return ZenodoClient()
+
+    @cached_property
     def freshness_scorer(self):
         """Freshness scorer for relevance ranking."""
         from lib.services.search.scorers.freshness_scorer import FreshnessScorer
@@ -98,6 +112,24 @@ class AppContainer:
         )
         return KaggleProcessor(
             kaggle_client=self.kaggle_client
+        )
+
+    @cached_property
+    def data_healthcare_processor(self):
+        """Data.Healthcare.gov processor."""
+        from lib.services.datasets.enrichment.healthcare_parser import (
+            DataHealthcareProcessor,
+        )
+        return DataHealthcareProcessor(
+            client=self.data_healthcare_client,
+        )
+
+    @cached_property
+    def zenodo_processor(self):
+        """Zenodo processor."""
+        from lib.services.datasets.enrichment.zenodo_parser import ZenodoProcessor
+        return ZenodoProcessor(
+            client=self.zenodo_client,
         )
 
     @cached_property

@@ -1,6 +1,5 @@
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 from lib.auth.models import User
@@ -20,9 +19,7 @@ from lib.core.exceptions import (
     TokenInvalid,
     UserAlreadyExists,
 )
-
-if TYPE_CHECKING:
-    from lib.core.uow import UnitOfWork
+from lib.core.uow import UnitOfWork
 
 
 @dataclass
@@ -50,7 +47,7 @@ class AuthService:
 
     async def register(
         self,
-        uow: "UnitOfWork",
+        uow: UnitOfWork,
         email: str,
         password: str,
         full_name: str | None,
@@ -94,7 +91,7 @@ class AuthService:
 
     async def login(
         self,
-        uow: "UnitOfWork",
+        uow: UnitOfWork,
         email: str,
         password: str,
         ip_address: str | None = None,
@@ -164,7 +161,7 @@ class AuthService:
 
     async def refresh_token(
         self,
-        uow: "UnitOfWork",
+        uow: UnitOfWork,
         refresh_token: str
     ) -> TokenPair:
         """Generate new token pair from refresh token (rotation)."""
@@ -190,7 +187,7 @@ class AuthService:
 
     async def logout(
         self,
-        uow: "UnitOfWork",
+        uow: UnitOfWork,
         access_token: str,
         refresh_token: str | None,
         user_id: UUID,
@@ -217,7 +214,7 @@ class AuthService:
 
     async def get_current_user(
         self,
-        uow: "UnitOfWork",
+        uow: UnitOfWork,
         token: str
     ) -> User:
         """Get user from access token."""

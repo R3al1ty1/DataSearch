@@ -12,6 +12,8 @@ celery_app = Celery(
         "lib.crons.cleanup",
         "lib.crons.enrichment.hf",
         "lib.crons.enrichment.kaggle",
+        "lib.crons.enrichment.healthcare",
+        "lib.crons.enrichment.zenodo",
         "lib.crons.enrichment.static_scores",
     ]
 )
@@ -49,6 +51,16 @@ celery_app.conf.beat_schedule = {
         'task': 'kaggle.fetch_latest',
         'schedule': 86400.0,
         'args': (100, 'updated')
+    },
+    'refresh-healthcare-catalog-daily': {
+        'task': 'healthcare.refresh_catalog',
+        'schedule': 86400.0,
+        'args': (100, True)
+    },
+    'fetch-zenodo-datasets-daily': {
+        'task': 'zenodo.fetch_datasets',
+        'schedule': 86400.0,
+        'args': (1000, 1, 100)
     },
     'compute-static-scores-daily': {
         'task': 'search.compute_static_scores',

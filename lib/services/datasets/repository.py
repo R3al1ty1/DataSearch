@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import and_, bindparam, column, func, literal_column, or_, select, update
+from sqlalchemy import and_, bindparam, case, column, func, literal_column, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.inspection import inspect
@@ -263,6 +263,38 @@ class DatasetRepository(BaseRepository[Dataset]):
             for col in mapper.columns
             if col.key not in exclude_fields
         }
+        content_changed = or_(
+            Dataset.source_updated_at.is_distinct_from(stmt.excluded.source_updated_at),
+            Dataset.source_meta.is_distinct_from(stmt.excluded.source_meta),
+        )
+        fields['embedding'] = case(
+            (content_changed, None),
+            else_=Dataset.embedding,
+        )
+        fields['static_score'] = case(
+            (content_changed, None),
+            else_=Dataset.static_score,
+        )
+        fields['docs_score'] = case(
+            (content_changed, None),
+            else_=Dataset.docs_score,
+        )
+        fields['repr_score'] = case(
+            (content_changed, None),
+            else_=Dataset.repr_score,
+        )
+        fields['social_score'] = case(
+            (content_changed, None),
+            else_=Dataset.social_score,
+        )
+        fields['legal_score'] = case(
+            (content_changed, None),
+            else_=Dataset.legal_score,
+        )
+        fields['last_enriched_at'] = case(
+            (content_changed, None),
+            else_=Dataset.last_enriched_at,
+        )
         fields['updated_at'] = func.now()
         return fields
 
