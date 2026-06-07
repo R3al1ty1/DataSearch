@@ -141,7 +141,7 @@ class AuthService:
 
         await self.rate_limit_service.reset_attempts(email)
 
-        await uow.users.update_last_login(user.id)
+        user.last_login_at = await uow.users.update_last_login(user.id)
 
         await uow.security_events.log_event(
             event_type="login_success",

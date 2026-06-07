@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -41,14 +42,16 @@ class UserRepository(BaseRepository[User]):
         )
         return result.scalar_one() > 0
 
-    async def update_last_login(self, user_id: UUID) -> None:
+    async def update_last_login(self, user_id: UUID) -> datetime:
         """Update user's last login timestamp."""
+        last_login_at = datetime.now(UTC).replace(tzinfo=None)
         await self.session.execute(
             update(User)
             .where(User.id == user_id)
-            .values(last_login_at=func.now())
+            .values(last_login_at=last_login_at)
         )
         await self.session.flush()
+        return last_login_at
 
     async def create_user(
         self,
