@@ -78,6 +78,7 @@ class TestReprScore:
         (["csv"], 0.9),
         (["pdf"], 0.2),
         (["xlsx"], 0.6),
+        (["zip"], 0.7),
         (["unknown_format"], 0.3),
     ])
     def test_known_formats(self, formats, expected):
@@ -128,6 +129,9 @@ class TestLegalScore:
 
     def test_alias_cc0(self):
         assert self.scorer.score("cc0") == 1.0
+
+    def test_alias_us_public_domain_url(self):
+        assert self.scorer.score("https://www.usa.gov/publicdomain/label/1.0/") == 1.0
 
     def test_multiple_licenses_takes_max(self):
         assert self.scorer.score(["gpl-3.0", "mit"]) == 1.0

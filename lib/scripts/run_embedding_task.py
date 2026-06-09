@@ -17,12 +17,8 @@ from lib.core.container import container
 
 async def check_datasets_status():
     """Check datasets needing embeddings and overall stats."""
-    dataset_repo = container.dataset_repo
-
-    async with container.db.begin_session() as session:
-        datasets = await dataset_repo.get_for_embedding_generation(
-            session, limit=1000
-        )
+    async with container.uow() as uow:
+        datasets = await uow.datasets.get_for_embedding_generation(limit=1000)
         print(f"\nDatasets needing embeddings: {len(datasets)}")
 
         if datasets:
@@ -41,12 +37,11 @@ async def test_embedding_processor():
     print("\n=== Testing EmbeddingProcessor ===")
 
     processor = EmbeddingProcessor(
-        dataset_repo=container.dataset_repo,
         embedder=container.embedder
     )
 
-    async with container.db.begin_session() as session:
-        processed, failed = await processor.process_batch(session, batch_size=5)
+    async with container.uow() as uow:
+        processed, failed = await processor.process_batch(uow, batch_size=5)
         print(f"Processed: {processed}, Failed: {failed}")
 
 

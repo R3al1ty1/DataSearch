@@ -1,41 +1,36 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from lib.auth.exceptions import AccountInactive, InsufficientPermissions, MissingAuthHeader
 from lib.auth.models import User
 from lib.core.constants import UserRole
 from lib.core.container import container
-from lib.core.exceptions import AuthenticationError
+from lib.core.uow import UnitOfWork
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
+
+async def get_uow():
+    async with container.uow() as uow:
+        yield uow
 
 async def get_current_user(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    db: AsyncSession = Depends(container.db.get_session)
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    uow: UnitOfWork = Depends(get_uow, scope="function")
 ) -> User:
     """Dependency to get current authenticated user."""
-    try:
-        user = await container.auth_service.get_current_user(db, credentials.credentials)
-        return user
-    except AuthenticationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    if credentials is None:
+        raise MissingAuthHeader()
+    return await container.auth_service.get_current_user(uow, credentials.credentials)
 
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)]
 ) -> User:
     """Dependency to get current active user."""
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive",
-        )
+        raise AccountInactive()
     return current_user
 
 def require_role(required_role: UserRole):
@@ -47,10 +42,7 @@ def require_role(required_role: UserRole):
         if user_role == UserRole.ADMIN:
             return current_user
         if user_role != required_role:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"This action requires {required_role.value} role",
-            )
+            raise InsufficientPermissions(required_role.value)
         return current_user
 
     return check_role

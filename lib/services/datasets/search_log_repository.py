@@ -9,12 +9,11 @@ from lib.services.datasets.models import SearchLog
 class SearchLogRepository(BaseRepository[SearchLog]):
     """Repository for search log operations."""
 
-    def __init__(self):
-        super().__init__(SearchLog)
+    def __init__(self, session: AsyncSession):
+        super().__init__(SearchLog, session)
 
     async def log_search(
         self,
-        session: AsyncSession,
         user_id: UUID,
         query: str,
         filters: dict | None,
@@ -33,6 +32,6 @@ class SearchLogRepository(BaseRepository[SearchLog]):
             result_ids=result_ids,
             score_version=score_version,
         )
-        session.add(log)
-        await session.flush()
+        self.session.add(log)
+        await self.session.flush()
         return log

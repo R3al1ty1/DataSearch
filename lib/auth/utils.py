@@ -6,9 +6,9 @@ import bcrypt
 from authlib.integrations.starlette_client import OAuth
 from jose import JWTError, jwt
 
+from lib.auth.exceptions import PasswordValidationError, TokenExpired, TokenInvalid
 from lib.core.config import Settings
 from lib.core.constants import AuthConstants, UserRole
-from lib.core.exceptions import PasswordValidationError, TokenExpired, TokenInvalid
 
 
 def create_access_token(

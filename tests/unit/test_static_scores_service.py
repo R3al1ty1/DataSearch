@@ -29,33 +29,33 @@ def _make_service(datasets: list):
     repo = MagicMock()
     repo.get_datasets_for_scoring = AsyncMock(return_value=datasets)
     repo.batch_update_static_scores = AsyncMock(return_value=len(datasets))
-    repo.commit = AsyncMock()
-    return StaticScoreService(dataset_repo=repo, logger=MagicMock())
+    uow = MagicMock()
+    uow.enrichment_logs = repo
+    return StaticScoreService(logger=MagicMock()), uow
 
 
 class TestComputeAll:
     @pytest.mark.anyio
     async def test_empty_corpus_returns_zero(self):
-        service = _make_service([])
-        result = await service.compute_all(MagicMock())
+        service, uow = _make_service([])
+        result = await service.compute_all(uow)
         assert result == 0
 
     @pytest.mark.anyio
     async def test_returns_count_of_updated(self):
         datasets = [_make_dataset() for _ in range(5)]
-        service = _make_service(datasets)
-        result = await service.compute_all(MagicMock())
+        service, uow = _make_service(datasets)
+        result = await service.compute_all(uow)
         assert result == 5
 
     @pytest.mark.anyio
     async def test_scores_saved_with_all_components(self):
         ds = _make_dataset()
-        service = _make_service([ds])
-        session = MagicMock()
-        await service.compute_all(session)
+        service, uow = _make_service([ds])
+        await service.compute_all(uow)
 
-        call_args = service._repo.batch_update_static_scores.call_args
-        scores_dict = call_args[0][1]
+        call_args = uow.enrichment_logs.batch_update_static_scores.call_args
+        scores_dict = call_args[0][0]
         entry = scores_dict[ds.id]
 
         assert "static_score" in entry
@@ -67,10 +67,10 @@ class TestComputeAll:
     @pytest.mark.anyio
     async def test_static_score_in_range(self):
         ds = _make_dataset()
-        service = _make_service([ds])
-        await service.compute_all(MagicMock())
+        service, uow = _make_service([ds])
+        await service.compute_all(uow)
 
-        scores_dict = service._repo.batch_update_static_scores.call_args[0][1]
+        scores_dict = uow.enrichment_logs.batch_update_static_scores.call_args[0][0]
         score = scores_dict[ds.id]["static_score"]
         assert 0.0 <= score <= 1.0
 
@@ -79,10 +79,10 @@ class TestComputeAll:
         hf_ds = _make_dataset(source_name="huggingface", view_count=0)
         kaggle_ds = _make_dataset(source_name="kaggle", view_count=0)
         datasets = [hf_ds, kaggle_ds]
-        service = _make_service(datasets)
-        await service.compute_all(MagicMock())
+        service, uow = _make_service(datasets)
+        await service.compute_all(uow)
 
-        scores = service._repo.batch_update_static_scores.call_args[0][1]
+        scores = uow.enrichment_logs.batch_update_static_scores.call_args[0][0]
         hf_social = scores[hf_ds.id]["social_score"]
         kaggle_social = scores[kaggle_ds.id]["social_score"]
         assert hf_social >= 0.4
@@ -93,17 +93,17 @@ class TestComputeAll:
         hf_popular = _make_dataset(source_name="huggingface", download_count=10000, like_count=500)
         hf_new = _make_dataset(source_name="huggingface", download_count=0, like_count=0)
         kaggle_avg = _make_dataset(source_name="kaggle", download_count=100, view_count=50, like_count=10)
-        service = _make_service([hf_popular, hf_new, kaggle_avg])
-        await service.compute_all(MagicMock())
+        service, uow = _make_service([hf_popular, hf_new, kaggle_avg])
+        await service.compute_all(uow)
 
-        scores = service._repo.batch_update_static_scores.call_args[0][1]
+        scores = uow.enrichment_logs.batch_update_static_scores.call_args[0][0]
         assert scores[hf_popular.id]["social_score"] > scores[hf_new.id]["social_score"]
         assert scores[kaggle_avg.id]["social_score"] >= 0.4
 
 
 class TestSocialPercentiles:
     def test_single_dataset_does_not_crash(self):
-        service = _make_service([])
+        service, _ = _make_service([])
         ds = _make_dataset(download_count=100, like_count=10)
         percentiles = service._build_social_percentiles([ds])
         assert "kaggle" in percentiles

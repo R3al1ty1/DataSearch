@@ -122,6 +122,54 @@ class KaggleEnrichedDatasetDTO(BaseModel):
             return self.createdDate
         return datetime.now(timezone.utc)
 
+
+class DataHealthcareDatasetDTO(BaseModel):
+    title: str
+    identifier: str
+    description: str | None = None
+    issued: datetime | None = None
+    modified: datetime | None = None
+    license: str | None = None
+    keyword: list[str] = Field(default_factory=list)
+    theme: list[str] = Field(default_factory=list)
+    distribution: list[dict] = Field(default_factory=list)
+    column_names: list[str] | None = None
+    access_level: str | None = Field(default=None, alias="accessLevel")
+    accrual_periodicity: str | None = Field(default=None, alias="accrualPeriodicity")
+    publisher: dict | None = None
+    contact_point: dict | None = Field(default=None, alias="contactPoint")
+    bureau_code: list[str] | None = Field(default=None, alias="bureauCode")
+    program_code: list[str] | None = Field(default=None, alias="programCode")
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    @property
+    def tags(self) -> list[str] | None:
+        tags = sorted({tag for tag in [*self.keyword, *self.theme] if tag})
+        return tags or None
+
+    @property
+    def file_formats(self) -> list[str] | None:
+        formats = set()
+        for distribution in self.distribution:
+            fmt = distribution.get("format")
+            if isinstance(fmt, str) and fmt.strip():
+                formats.add(fmt.strip().lower())
+                continue
+
+            media_type = distribution.get("mediaType")
+            if isinstance(media_type, str) and "/" in media_type:
+                formats.add(media_type.rsplit("/", 1)[1].strip().lower())
+                continue
+
+            download_url = distribution.get("downloadURL")
+            if isinstance(download_url, str) and "." in download_url:
+                ext = download_url.rsplit(".", 1)[1].split("?", 1)[0].lower()
+                if ext and len(ext) <= 10:
+                    formats.add(ext)
+
+        return sorted(formats) or None
+
 class SearchFilters(BaseModel):
     """Filters for dataset search."""
     source_name: str | None = None

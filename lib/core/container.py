@@ -34,6 +34,9 @@ class AppContainer:
             logger=self.logger
         )
 
+    def uow(self):
+        return self.db.uow()
+
     @cached_property
     def embedder(self) -> EmbeddingService:
         """ML embedding service."""
@@ -55,22 +58,32 @@ class AppContainer:
         return KaggleClient()
 
     @cached_property
-    def dataset_repo(self):
-        """Dataset repository."""
-        from lib.services.datasets.repository import DatasetRepository
-        return DatasetRepository()
+    def data_healthcare_client(self):
+        """Data.Healthcare.gov API client."""
+        from lib.services.datasets.enrichment.healthcare_parser import (
+            DataHealthcareClient,
+        )
+        return DataHealthcareClient()
 
     @cached_property
-    def search_log_repo(self):
-        """Search log repository."""
-        from lib.services.datasets.search_log_repository import SearchLogRepository
-        return SearchLogRepository()
+    def datagov_client(self):
+        """Data.gov Catalog API client."""
+        from lib.services.datasets.enrichment.datagov_parser import DataGovClient
+        return DataGovClient()
 
     @cached_property
-    def click_repo(self):
-        """Click event repository."""
-        from lib.services.datasets.click_repository import ClickRepository
-        return ClickRepository()
+    def zenodo_client(self):
+        """Zenodo API client."""
+        from lib.services.datasets.enrichment.zenodo_parser import ZenodoClient
+        return ZenodoClient()
+
+    @cached_property
+    def world_bank_ddh_client(self):
+        """World Bank Data Catalog API client."""
+        from lib.services.datasets.enrichment.world_bank_ddh_parser import (
+            WorldBankDDHClient,
+        )
+        return WorldBankDDHClient()
 
     @cached_property
     def freshness_scorer(self):
@@ -92,27 +105,17 @@ class AppContainer:
         """Search service."""
         from lib.services.search import SearchService
         return SearchService(
-            dataset_repo=self.dataset_repo,
-            search_log_repo=self.search_log_repo,
-            click_repo=self.click_repo,
             embedder=self.embedder,
             ranker=self.relevance_ranker,
             logger=self.logger,
         )
 
     @cached_property
-    def enrichment_log_repo(self):
-        """Enrichment log repository."""
-        from lib.services.datasets.repository import EnrichmentLogRepository
-        return EnrichmentLogRepository()
-
-    @cached_property
     def hf_processor(self):
         """HuggingFace processor."""
         from lib.services.datasets.enrichment.hf_parser.processor import HFProcessor
         return HFProcessor(
-            hf_client=self.hf_client,
-            dataset_repo=self.dataset_repo
+            hf_client=self.hf_client
         )
 
     @cached_property
@@ -122,9 +125,43 @@ class AppContainer:
             KaggleProcessor,
         )
         return KaggleProcessor(
-            kaggle_client=self.kaggle_client,
-            dataset_repo=self.dataset_repo,
-            log_repo=self.enrichment_log_repo
+            kaggle_client=self.kaggle_client
+        )
+
+    @cached_property
+    def data_healthcare_processor(self):
+        """Data.Healthcare.gov processor."""
+        from lib.services.datasets.enrichment.healthcare_parser import (
+            DataHealthcareProcessor,
+        )
+        return DataHealthcareProcessor(
+            client=self.data_healthcare_client,
+        )
+
+    @cached_property
+    def datagov_processor(self):
+        """Data.gov processor."""
+        from lib.services.datasets.enrichment.datagov_parser import DataGovProcessor
+        return DataGovProcessor(
+            client=self.datagov_client,
+        )
+
+    @cached_property
+    def zenodo_processor(self):
+        """Zenodo processor."""
+        from lib.services.datasets.enrichment.zenodo_parser import ZenodoProcessor
+        return ZenodoProcessor(
+            client=self.zenodo_client,
+        )
+
+    @cached_property
+    def world_bank_ddh_processor(self):
+        """World Bank Data Catalog processor."""
+        from lib.services.datasets.enrichment.world_bank_ddh_parser import (
+            WorldBankDDHProcessor,
+        )
+        return WorldBankDDHProcessor(
+            client=self.world_bank_ddh_client,
         )
 
     @cached_property
@@ -132,7 +169,6 @@ class AppContainer:
         """Static score service."""
         from lib.services.static_scores import StaticScoreService
         return StaticScoreService(
-            dataset_repo=self.dataset_repo,
             logger=self.logger,
         )
 
@@ -141,7 +177,6 @@ class AppContainer:
         """Embedding processor."""
         from lib.services.datasets.ml.embedding_processor import EmbeddingProcessor
         return EmbeddingProcessor(
-            dataset_repo=self.dataset_repo,
             embedder=self.embedder
         )
 
@@ -153,18 +188,6 @@ class AppContainer:
             redis_url=self.settings.REDIS_AUTH_URL,
             logger=self.logger
         )
-
-    @cached_property
-    def user_repo(self):
-        """User repository."""
-        from lib.auth.repository import UserRepository
-        return UserRepository()
-
-    @cached_property
-    def security_event_repo(self):
-        """Security event repository."""
-        from lib.auth.repository import SecurityEventRepository
-        return SecurityEventRepository()
 
     @cached_property
     def token_service(self):
@@ -190,8 +213,6 @@ class AppContainer:
         """Auth service."""
         from lib.auth.services.auth_service import AuthService
         return AuthService(
-            user_repo=self.user_repo,
-            security_event_repo=self.security_event_repo,
             token_service=self.token_service,
             rate_limit_service=self.rate_limit_service,
             settings=self.settings,
@@ -203,11 +224,7 @@ class AppContainer:
         """OAuth service."""
         from lib.auth.services.oauth_service import OAuthService
         return OAuthService(
-            user_repo=self.user_repo,
-            security_event_repo=self.security_event_repo,
             token_service=self.token_service,
-            redis_manager=self.redis_auth,
-            settings=self.settings,
             logger=self.logger
         )
 

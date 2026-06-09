@@ -1,6 +1,8 @@
 import asyncio
 from typing import AsyncGenerator
 
+from pydantic import ValidationError
+
 from lib.core.container import container
 from lib.services.datasets.schemas import KaggleEnrichedDatasetDTO
 
@@ -115,7 +117,7 @@ class KaggleAPIClient:
             try:
                 dto = self._convert_to_dto(dataset)
                 batch.append(dto)
-            except Exception as e:
+            except (AttributeError, ValidationError) as e:
                 self._logger.warning(f"Error converting {dataset.ref}: {e}")
 
             await asyncio.sleep(self.throttle_delay)

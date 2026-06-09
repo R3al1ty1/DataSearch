@@ -2,12 +2,7 @@ import logging
 import time
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from lib.services.datasets.click_repository import ClickRepository
 from lib.services.datasets.models import Dataset
-from lib.services.datasets.repository import DatasetRepository
-from lib.services.datasets.search_log_repository import SearchLogRepository
 from lib.services.datasets.schemas import (
     DatasetItem,
     ScoreBreakdown,
@@ -16,6 +11,7 @@ from lib.services.datasets.schemas import (
     TopDatasetItem,
     TopSearchResponse,
 )
+from lib.core.uow import UnitOfWork
 from lib.services.datasets.ml.embedder import EmbeddingService
 from lib.services.search.scorers.relevance_ranker import RelevanceRanker
 
@@ -25,23 +21,17 @@ SEARCH_BUFFER_MULTIPLIER = 5
 class SearchService:
     def __init__(
         self,
-        dataset_repo: DatasetRepository,
-        search_log_repo: SearchLogRepository,
-        click_repo: ClickRepository,
         embedder: EmbeddingService,
         ranker: RelevanceRanker,
         logger: logging.Logger,
     ):
-        self._dataset_repo = dataset_repo
-        self._search_log_repo = search_log_repo
-        self._click_repo = click_repo
         self._embedder = embedder
         self._ranker = ranker
         self._logger = logger
 
     async def search(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         query: str,
         filters: SearchFilters,
         limit: int,
@@ -56,8 +46,7 @@ class SearchService:
 
         candidate_limit = limit * SEARCH_BUFFER_MULTIPLIER
 
-        raw_results = await self._dataset_repo.vector_search(
-            session,
+        raw_results = await uow.datasets.vector_search(
             query_embedding,
             filters,
             limit=candidate_limit,
@@ -65,8 +54,7 @@ class SearchService:
 
         bm25_results = None
         if self._ranker.strategy == "v3_rrf":
-            bm25_results = await self._dataset_repo.fts_search(
-                session,
+            bm25_results = await uow.datasets.fts_search(
                 query=query,
                 filters=filters,
                 limit=candidate_limit,
@@ -83,8 +71,7 @@ class SearchService:
 
         latency_ms = round((time.perf_counter() - start) * 1000, 2)
 
-        search_log = await self._search_log_repo.log_search(
-            session,
+        search_log = await uow.search_logs.log_search(
             user_id=user_id,
             query=query,
             filters=filters.model_dump(exclude_none=True) or None,
@@ -108,24 +95,23 @@ class SearchService:
 
     async def get_top_datasets(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         limit: int = 5,
     ) -> TopSearchResponse:
-        datasets = await self._dataset_repo.get_top_by_static_score(session, limit)
+        datasets = await uow.datasets.get_top_by_static_score(limit)
         return TopSearchResponse(
             items=[self._to_top_dataset_item(d) for d in datasets]
         )
 
     async def record_click(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         user_id: UUID,
         dataset_id: UUID,
         search_log_id: UUID | None,
         position: int,
     ) -> None:
-        await self._click_repo.record_click(
-            session,
+        await uow.clicks.record_click(
             user_id=user_id,
             dataset_id=dataset_id,
             search_log_id=search_log_id,

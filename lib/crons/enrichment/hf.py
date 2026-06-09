@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from celery import shared_task
 
 from lib.core.container import container
+from lib.core.task_errors import log_task_error, task_error_result
 
 
 @shared_task(name="hf.fetch_datasets")
@@ -19,14 +20,19 @@ def fetch_datasets(limit: int = 1000, days_back: int = 1):
     )
 
     async def _process():
-        async with container.db.begin_session() as session:
+        async with container.uow() as uow:
             return await container.hf_processor.fetch_and_store(
-                session,
+                uow,
                 limit=limit,
                 min_last_modified=min_date
             )
 
-    fetched, inserted = asyncio.run(_process())
+    try:
+        fetched, inserted = asyncio.run(_process())
+    except Exception as exc:
+        log_task_error(logger, "HuggingFace fetch", exc)
+        return task_error_result("hf.fetch_datasets", exc)
+
     logger.info(
         f"HuggingFace fetch completed: {fetched} fetched, {inserted} saved"
     )

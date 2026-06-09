@@ -1,11 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from lib.core.container import container
+from lib.core.exceptions import DataSearchError
+from lib.core.uow import UnitOfWork
+from lib.services.datasets.enrichment.exceptions import (
+    EnrichmentRateLimited,
+    EnrichmentSourceError,
+    is_rate_limit_error,
+    to_enrichment_error,
+)
 from lib.services.datasets.models import EnrichmentStage, EnrichmentResult
-from lib.services.datasets.repository import DatasetRepository
-from lib.services.datasets.repository import EnrichmentLogRepository
 from lib.services.datasets.enrichment.kaggle_parser.client_kaggle import KaggleClient
 from lib.services.datasets.enrichment.kaggle_parser.mapper import (
     map_meta_to_dataset,
@@ -19,17 +23,13 @@ class KaggleProcessor:
     def __init__(
         self,
         kaggle_client: KaggleClient,
-        dataset_repo: DatasetRepository,
-        log_repo: EnrichmentLogRepository
     ):
         self.kaggle_client = kaggle_client
-        self.dataset_repo = dataset_repo
-        self.log_repo = log_repo
         self.logger = container.logger
 
     async def seed_from_csv(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         batch_size: int = 1000,
         force_redownload: bool = False
     ) -> tuple[int, int]:
@@ -42,8 +42,8 @@ class KaggleProcessor:
             force_redownload=force_redownload
         ):
             datasets = [map_meta_to_dataset(dto) for dto in batch]
-            inserted = await self.dataset_repo.bulk_upsert(session, datasets)
-            await self.dataset_repo.commit(session)
+            inserted = await uow.datasets.bulk_upsert(datasets)
+            await uow.commit()
 
             total_processed += len(batch)
             total_inserted += inserted
@@ -57,12 +57,11 @@ class KaggleProcessor:
 
     async def enrich_pending(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         batch_size: int = 50
     ) -> tuple[int, int]:
         """Phase 2: Enriches pending datasets via Kaggle API."""
-        pending = await self.dataset_repo.get_pending_for_enrichment(
-            session,
+        pending = await uow.datasets.get_pending_for_enrichment(
             source_name='kaggle',
             limit=batch_size
         )
@@ -80,8 +79,8 @@ class KaggleProcessor:
             start_time = datetime.utcnow()
 
             try:
-                await self.dataset_repo.mark_enriching(session, dataset.id)
-                await self.dataset_repo.commit(session)
+                await uow.datasets.mark_enriching(dataset.id)
+                await uow.commit()
 
                 ref = self._extract_dataset_ref(dataset)
                 enriched_dto = await self.kaggle_client.enrich_dataset_by_ref(
@@ -91,26 +90,27 @@ class KaggleProcessor:
                 if enriched_dto:
                     total_enriched += 1
                     await self._save_enriched_dataset(
-                        session, dataset, enriched_dto, start_time
+                        uow, dataset, enriched_dto, start_time
                     )
                 else:
                     total_failed += 1
-                    await self._mark_as_failed(
-                        session, dataset, "Failed to fetch from API"
+                    error = EnrichmentSourceError(
+                        "kaggle", "api_metadata", "Failed to fetch from API"
                     )
+                    await self._mark_as_failed(uow, dataset, error)
 
             except Exception as e:
-                error_msg = str(e)
-
-                if "429" in error_msg or "rate" in error_msg.lower():
-                    await self._log_rate_limit(session, dataset, error_msg)
+                if is_rate_limit_error(e):
+                    error = EnrichmentRateLimited("kaggle", "api_metadata")
+                    await self._log_rate_limit(uow, dataset, error)
                     self.logger.warning(
                         f"Rate limited on {dataset.external_id}, stopping"
                     )
                     break
-                else:
-                    total_failed += 1
-                    await self._mark_as_failed(session, dataset, error_msg)
+
+                error = to_enrichment_error("kaggle", "api_metadata", e)
+                total_failed += 1
+                await self._mark_as_failed(uow, dataset, error)
 
             await self._rate_limit_delay()
 
@@ -118,7 +118,7 @@ class KaggleProcessor:
 
     async def fetch_latest(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         limit: int = 100,
         sort_by: str = 'updated'
     ) -> tuple[int, int]:
@@ -126,21 +126,24 @@ class KaggleProcessor:
         total_processed = 0
         total_inserted = 0
 
-        async for batch in self.kaggle_client.fetch_latest_datasets(
-            limit=limit,
-            sort_by=sort_by
-        ):
-            datasets = [map_enriched_to_dataset(dto) for dto in batch]
-            inserted = await self.dataset_repo.bulk_upsert(session, datasets)
-            await self.dataset_repo.commit(session)
+        try:
+            async for batch in self.kaggle_client.fetch_latest_datasets(
+                limit=limit,
+                sort_by=sort_by
+            ):
+                datasets = [map_enriched_to_dataset(dto) for dto in batch]
+                inserted = await uow.datasets.bulk_upsert(datasets)
+                await uow.commit()
 
-            total_processed += len(batch)
-            total_inserted += inserted
+                total_processed += len(batch)
+                total_inserted += inserted
 
-            self.logger.info(
-                f"Processed batch: {len(batch)} datasets, "
-                f"inserted/updated: {inserted}"
-            )
+                self.logger.info(
+                    f"Processed batch: {len(batch)} datasets, "
+                    f"inserted/updated: {inserted}"
+                )
+        except Exception as e:
+            raise to_enrichment_error("kaggle", "fetch_latest", e) from e
 
         return total_processed, total_inserted
 
@@ -154,48 +157,57 @@ class KaggleProcessor:
 
     async def _mark_as_failed(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         dataset,
-        error_message: str
+        error
     ) -> None:
         """Marks dataset as failed and log error."""
-        await self.dataset_repo.mark_failed(
-            session,
+        error_message = getattr(error, "message", str(error))
+        error_type = self._error_type(error)
+
+        await uow.datasets.mark_failed(
             dataset.id,
             error_message
         )
 
-        await self.log_repo.log_enrichment(
-            session,
+        await uow.enrichment_logs.log_enrichment(
             dataset_id=dataset.id,
             stage=EnrichmentStage.API_METADATA,
             result=EnrichmentResult.FAILED,
             attempt_number=dataset.enrichment_attempts + 1,
             error_message=error_message,
-            error_type=type(error_message).__name__
+            error_type=error_type
         )
 
-        await self.dataset_repo.commit(session)
+        await uow.commit()
 
-        self.logger.warning(f"Failed to enrich {dataset.external_id}")
+        self.logger.warning(
+            f"Failed to enrich {dataset.external_id}: "
+            f"error_code={error_type}, error_class={type(error).__name__}, "
+            f"details={getattr(error, 'details', None)}"
+        )
 
     async def _log_rate_limit(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         dataset,
-        error_msg: str
+        error: EnrichmentRateLimited
     ) -> None:
         """Logs rate limit error."""
-        await self.log_repo.log_enrichment(
-            session,
+        await uow.enrichment_logs.log_enrichment(
             dataset_id=dataset.id,
             stage=EnrichmentStage.API_METADATA,
             result=EnrichmentResult.RATE_LIMITED,
             attempt_number=dataset.enrichment_attempts + 1,
-            error_message=error_msg,
-            error_type="RateLimitError"
+            error_message=error.message,
+            error_type=error.error_code.value
         )
-        await self.dataset_repo.commit(session)
+        await uow.commit()
+
+    def _error_type(self, error) -> str:
+        if isinstance(error, DataSearchError):
+            return error.error_code.value
+        return type(error).__name__
 
     async def _rate_limit_delay(self) -> None:
         """Rate limiting delay between requests."""
@@ -204,7 +216,7 @@ class KaggleProcessor:
 
     async def _save_enriched_dataset(
         self,
-        session: AsyncSession,
+        uow: UnitOfWork,
         original_dataset,
         enriched_dto,
         start_time: datetime
@@ -213,15 +225,14 @@ class KaggleProcessor:
         enriched_dataset = map_enriched_to_dataset(enriched_dto)
         enriched_dataset.id = original_dataset.id
 
-        await self.dataset_repo.upsert(session, enriched_dataset)
-        await self.dataset_repo.mark_enriched(session, original_dataset.id)
+        await uow.datasets.upsert(enriched_dataset)
+        await uow.datasets.mark_enriched(original_dataset.id)
 
         duration_ms = int(
             (datetime.utcnow() - start_time).total_seconds() * 1000
         )
 
-        await self.log_repo.log_enrichment(
-            session,
+        await uow.enrichment_logs.log_enrichment(
             dataset_id=original_dataset.id,
             stage=EnrichmentStage.API_METADATA,
             result=EnrichmentResult.SUCCESS,
@@ -229,7 +240,7 @@ class KaggleProcessor:
             duration_ms=duration_ms
         )
 
-        await self.dataset_repo.commit(session)
+        await uow.commit()
 
         self.logger.info(
             f"Enriched dataset {original_dataset.external_id} ({duration_ms}ms)"

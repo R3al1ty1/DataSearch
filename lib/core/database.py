@@ -1,6 +1,4 @@
 import logging
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -10,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from lib.core.constants import AppEnvironment
+from lib.core.uow import UnitOfWork
 
 
 class DatabaseManager:
@@ -55,32 +54,13 @@ class DatabaseManager:
             self._session_factory = None
             self._logger.info("Database connection closed.")
 
-    async def get_session(
-        self
-    ) -> AsyncGenerator[AsyncSession, None]:
-        """Yields an asynchronous database session."""
+    def uow(self) -> UnitOfWork:
         if not self._session_factory:
             raise RuntimeError("Database not initialized")
 
-        async with self._session_factory() as session:
-            try:
-                yield session
-
-            except Exception as e:
-                self._logger.error(f"DB Session rollback: {e}")
-                await session.rollback()
-                raise
-
-            finally:
-                await session.close()
-
-    @asynccontextmanager
-    async def begin_session(
-        self
-    ) -> AsyncGenerator[AsyncSession, None]:
-        """Yields an asynchronous database session as a context manager."""
-        async for session in self.get_session():
-            yield session
+        return UnitOfWork(
+            session_factory=self._session_factory,
+        )
 
     @property
     def engine(self) -> AsyncEngine:

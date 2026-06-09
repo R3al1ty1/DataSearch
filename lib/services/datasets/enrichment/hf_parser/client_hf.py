@@ -2,6 +2,7 @@ import httpx
 import asyncio
 from datetime import datetime
 from typing import AsyncGenerator
+from pydantic import ValidationError
 from tenacity import (
     retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 )
@@ -117,7 +118,7 @@ class HuggingFaceClient:
         """Parses a single raw dataset item into DTO."""
         try:
             return HFDatasetDTO.model_validate(item)
-        except Exception as e:
+        except ValidationError as e:
             item_id = item.get("id", "unknown")
             self._logger.error(f"Failed to parse {item_id}: {e}")
             return None

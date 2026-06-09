@@ -13,6 +13,7 @@ FORMAT_SCORES: dict[str, float] = {
     "pdf": 0.2,
     "doc": 0.2,
     "docx": 0.2,
+    "zip": 0.7,
 }
 FORMAT_UNKNOWN = 0.3
 
@@ -41,6 +42,8 @@ LICENSE_ALIASES: dict[str, str] = {
     "cc by 4.0": "cc-by-4.0",
     "cc0": "cc0-1.0",
     "public domain": "cc0-1.0",
+    "https://www.usa.gov/publicdomain/label/1.0/": "cc0-1.0",
+    "https://www.usa.gov/government-works": "cc0-1.0",
     "bsd": "bsd-3-clause",
     "odbl": "odbl-1.0",
 }
@@ -65,6 +68,9 @@ SOCIAL_FLOOR = 0.40
 SOURCE_AVAILABLE_SIGNALS: dict[str, frozenset[str]] = {
     "huggingface": frozenset({"downloads", "likes"}),
     "kaggle": frozenset({"downloads", "views", "likes"}),
+    "data_healthcare_gov": frozenset(),
+    "zenodo": frozenset({"downloads", "views"}),
+    "world_bank_ddh": frozenset({"downloads"}),
 }
 ALL_SIGNALS = frozenset({"downloads", "views", "likes"})
 

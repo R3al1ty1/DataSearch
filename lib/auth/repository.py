@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -10,24 +11,23 @@ from lib.core.base_repository import BaseRepository
 class UserRepository(BaseRepository[User]):
     """Repository for user operations."""
 
-    def __init__(self):
-        super().__init__(User)
+    def __init__(self, session: AsyncSession):
+        super().__init__(User, session)
 
-    async def get_by_email(self, session: AsyncSession, email: str) -> User | None:
+    async def get_by_email(self, email: str) -> User | None:
         """Get user by email."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(User).where(User.email == email.lower())
         )
         return result.scalar_one_or_none()
 
     async def get_by_oauth(
         self,
-        session: AsyncSession,
         provider: str,
         provider_id: str
     ) -> User | None:
         """Get user by OAuth provider and ID."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(User).where(
                 User.oauth_provider == provider,
                 User.oauth_provider_id == provider_id
@@ -35,25 +35,26 @@ class UserRepository(BaseRepository[User]):
         )
         return result.scalar_one_or_none()
 
-    async def email_exists(self, session: AsyncSession, email: str) -> bool:
+    async def email_exists(self, email: str) -> bool:
         """Check if email already exists."""
-        result = await session.execute(
+        result = await self.session.execute(
             select(func.count(User.id)).where(User.email == email.lower())
         )
         return result.scalar_one() > 0
 
-    async def update_last_login(self, session: AsyncSession, user_id: UUID) -> None:
+    async def update_last_login(self, user_id: UUID) -> datetime:
         """Update user's last login timestamp."""
-        await session.execute(
+        last_login_at = datetime.now(UTC).replace(tzinfo=None)
+        await self.session.execute(
             update(User)
             .where(User.id == user_id)
-            .values(last_login_at=func.now())
+            .values(last_login_at=last_login_at)
         )
-        await session.flush()
+        await self.session.flush()
+        return last_login_at
 
     async def create_user(
         self,
-        session: AsyncSession,
         email: str,
         password_hash: str | None,
         full_name: str | None,
@@ -72,17 +73,16 @@ class UserRepository(BaseRepository[User]):
             is_active=True,
             is_email_verified=True if oauth_provider else False
         )
-        return await self.create(session, user)
+        return await self.create(user)
 
 class SecurityEventRepository(BaseRepository[SecurityEvent]):
     """Repository for security event logging."""
 
-    def __init__(self):
-        super().__init__(SecurityEvent)
+    def __init__(self, session: AsyncSession):
+        super().__init__(SecurityEvent, session)
 
     async def log_event(
         self,
-        session: AsyncSession,
         event_type: str,
         user_id: UUID | None = None,
         ip_address: str | None = None,
@@ -97,4 +97,4 @@ class SecurityEventRepository(BaseRepository[SecurityEvent]):
             user_agent=user_agent,
             details=details or {}
         )
-        return await self.create(session, event)
+        return await self.create(event)

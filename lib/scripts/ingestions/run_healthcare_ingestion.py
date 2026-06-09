@@ -4,48 +4,64 @@ import os
 from sqlalchemy import func, select
 
 from lib.core.container import container
+from lib.core.exceptions import DataSearchError
 from lib.services.datasets.models import Dataset
 
 os.environ.setdefault('POSTGRES_HOST', 'localhost')
 os.environ.setdefault('POSTGRES_PORT', '5434')
 os.environ.setdefault('POSTGRES_DB', 'datasearch_db')
 
-async def test_kaggle_ingestion():
-    """Test Kaggle dataset ingestion and verify what gets saved to DB."""
+
+async def test_healthcare_ingestion():
+    """Test Data.Healthcare.gov ingestion and verify what gets saved to DB."""
 
     logger = container.logger
-    logger.info("=== Testing Kaggle Dataset Ingestion ===")
+    logger.info("=== Testing Data.Healthcare.gov Dataset Ingestion ===")
     logger.info(f"Database URL: {container.settings.SQLALCHEMY_DATABASE_URI}")
+
+    batch_size = int(os.getenv("HEALTHCARE_BATCH_SIZE", "100"))
+    include_data_dictionaries = (
+        os.getenv("HEALTHCARE_INCLUDE_DATA_DICTIONARIES", "true").lower()
+        not in {"0", "false", "no"}
+    )
 
     container.db.init()
 
-    async with container.db._session_factory() as session:
+    async with container.uow() as uow:
         try:
-            count_before = await session.execute(
-                select(func.count(Dataset.id)).where(Dataset.source_name == 'kaggle')
+            count_before = await uow.session.execute(
+                select(func.count(Dataset.id)).where(
+                    Dataset.source_name == 'data_healthcare_gov'
+                )
             )
             total_before = count_before.scalar_one()
-            logger.info(f"Kaggle datasets before: {total_before}")
+            logger.info(f"Data.Healthcare.gov datasets before: {total_before}")
 
-            logger.info("Fetching latest 10 datasets from Kaggle API...")
-            fetched, inserted = await container.kaggle_processor.fetch_latest(
-                session,
-                limit=10,
-                sort_by='updated'
+            logger.info(
+                "Refreshing Data.Healthcare.gov catalog "
+                f"(batch_size={batch_size}, "
+                f"include_data_dictionaries={include_data_dictionaries})..."
+            )
+            fetched, saved = await container.data_healthcare_processor.refresh_catalog(
+                uow,
+                batch_size=batch_size,
+                include_data_dictionaries=include_data_dictionaries,
             )
 
-            logger.info(f"Fetch completed: {fetched} fetched, {inserted} inserted/updated")
+            logger.info(f"Refresh completed: {fetched} fetched, {saved} inserted/updated")
 
-            count_after = await session.execute(
-                select(func.count(Dataset.id)).where(Dataset.source_name == 'kaggle')
+            count_after = await uow.session.execute(
+                select(func.count(Dataset.id)).where(
+                    Dataset.source_name == 'data_healthcare_gov'
+                )
             )
             total_after = count_after.scalar_one()
-            logger.info(f"Kaggle datasets after: {total_after}")
+            logger.info(f"Data.Healthcare.gov datasets after: {total_after}")
 
-            result = await session.execute(
+            result = await uow.session.execute(
                 select(Dataset)
-                .where(Dataset.source_name == 'kaggle')
-                .order_by(Dataset.created_at.desc())
+                .where(Dataset.source_name == 'data_healthcare_gov')
+                .order_by(Dataset.source_updated_at.desc().nulls_last())
                 .limit(3)
             )
             latest_datasets = result.scalars().all()
@@ -76,11 +92,20 @@ async def test_kaggle_ingestion():
 
             logger.info("\n=== Test completed successfully ===")
 
+        except DataSearchError as e:
+            logger.error(
+                "Domain error during test: "
+                f"error_code={e.error_code.value}, message={e.message}, "
+                f"details={e.details}",
+                exc_info=True,
+            )
+            raise
         except Exception as e:
             logger.error(f"Error during test: {e}", exc_info=True)
             raise
         finally:
             await container.db.close()
 
+
 if __name__ == "__main__":
-    asyncio.run(test_kaggle_ingestion())
+    asyncio.run(test_healthcare_ingestion())

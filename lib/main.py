@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
 from lib.core.container import container
+from lib.core.exceptions import register_exception_handlers
 from lib.auth.utils import configure_oauth
 from lib.router import api_router
 
@@ -29,7 +30,7 @@ async def lifespan(app: FastAPI):
 
     except Exception as e:
         logger.critical(f"❌ Startup failed: {e}")
-        raise e
+        raise
 
     yield
 
@@ -61,6 +62,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    register_exception_handlers(app, container.logger)
 
     app.include_router(api_router, prefix=container.settings.API_V1_STR)
 
