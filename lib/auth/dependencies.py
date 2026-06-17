@@ -1,3 +1,4 @@
+from secrets import compare_digest
 from typing import Annotated
 
 from fastapi import Depends, Request, Response
@@ -15,12 +16,31 @@ async def get_uow():
     async with container.uow() as uow:
         yield uow
 
+def _has_valid_service_token(service_token: str | None) -> bool:
+    if not service_token:
+        return False
+    expected_token = container.settings.DATASEARCH_SERVICE_TOKEN
+    return bool(
+        expected_token
+        and compare_digest(service_token, expected_token)
+    )
+
 async def get_current_user(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     uow: UnitOfWork = Depends(get_uow, scope="function")
 ) -> User:
     """Dependency to get current authenticated user."""
+    service_token = request.headers.get("x-service-token")
+    forwarded_user_id = request.headers.get("x-user-id")
+    forwarded_user_role = request.headers.get("x-user-role")
+    if _has_valid_service_token(service_token):
+        return await container.auth_service.get_or_create_gateway_user(
+            uow,
+            forwarded_user_id,
+            forwarded_user_role,
+        )
+
     if credentials is None:
         raise MissingAuthHeader()
     return await container.auth_service.get_current_user(uow, credentials.credentials)

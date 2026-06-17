@@ -2,6 +2,8 @@ import logging
 import time
 from uuid import UUID
 
+from lib.core.uow import UnitOfWork
+from lib.services.datasets.ml.embedder import EmbeddingService
 from lib.services.datasets.models import Dataset
 from lib.services.datasets.schemas import (
     DatasetItem,
@@ -11,8 +13,6 @@ from lib.services.datasets.schemas import (
     TopDatasetItem,
     TopSearchResponse,
 )
-from lib.core.uow import UnitOfWork
-from lib.services.datasets.ml.embedder import EmbeddingService
 from lib.services.search.scorers.relevance_ranker import RelevanceRanker
 
 SEARCH_BUFFER_MULTIPLIER = 5

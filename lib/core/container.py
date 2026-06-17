@@ -4,7 +4,6 @@ from functools import cached_property
 from lib.core.config import Settings
 from lib.core.database import DatabaseManager
 from lib.core.logger import LoggerManager
-from lib.services.datasets.ml.embedder import EmbeddingService
 
 
 class AppContainer:
@@ -38,8 +37,10 @@ class AppContainer:
         return self.db.uow()
 
     @cached_property
-    def embedder(self) -> EmbeddingService:
+    def embedder(self):
         """ML embedding service."""
+        from lib.services.datasets.ml.embedder import EmbeddingService
+
         return EmbeddingService(
             model_name=self.settings.EMBEDDING_MODEL,
             logger=self.logger
