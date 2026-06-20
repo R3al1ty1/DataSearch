@@ -473,8 +473,8 @@ class EnrichmentLogRepository(BaseRepository[DatasetEnrichmentLog]):
             return 0
 
         await self.session.execute(
-            update(Dataset)
-            .where(Dataset.id == bindparam('bid'))
+            update(Dataset.__table__)
+            .where(Dataset.__table__.c.id == bindparam('bid'))
             .values(
                 static_score=bindparam('static_score'),
                 docs_score=bindparam('docs_score'),

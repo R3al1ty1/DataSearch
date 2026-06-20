@@ -1,15 +1,10 @@
 import asyncio
-import os
 
 from sqlalchemy import func, select
 
 from lib.core.container import container
 from lib.core.exceptions import DataSearchError
 from lib.services.datasets.models import Dataset
-
-os.environ.setdefault('POSTGRES_HOST', 'localhost')
-os.environ.setdefault('POSTGRES_PORT', '5434')
-os.environ.setdefault('POSTGRES_DB', 'datasearch_db')
 
 async def test_kaggle_ingestion():
     """Test Kaggle dataset ingestion and verify what gets saved to DB."""
