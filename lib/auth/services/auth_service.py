@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from lib.auth.models import User
 from lib.auth.services.rate_limit_service import RateLimitService
@@ -234,3 +234,46 @@ class AuthService:
             raise TokenInvalid()
 
         return user
+
+    async def get_or_create_gateway_user(
+        self,
+        uow: UnitOfWork,
+        forwarded_user_id: str | None,
+        forwarded_user_role: str | None,
+    ) -> User:
+        gateway_user_id = forwarded_user_id or "service"
+        user_id = self._gateway_user_id(gateway_user_id)
+        role = self._gateway_user_role(forwarded_user_role, forwarded_user_id)
+
+        user = await uow.users.get_by_id(user_id)
+        if user is not None:
+            return user
+
+        user = User(
+            email=f"gateway-{user_id}@gateway.local",
+            role=role.value,
+            is_active=True,
+            is_email_verified=True,
+        )
+        user.id = user_id
+        user = await uow.users.create(user)
+        await uow.commit()
+        return user
+
+    def _gateway_user_id(self, forwarded_user_id: str) -> UUID:
+        try:
+            return UUID(forwarded_user_id)
+        except ValueError:
+            return uuid5(NAMESPACE_URL, f"dataoffice-core:user:{forwarded_user_id}")
+
+    def _gateway_user_role(
+        self,
+        forwarded_user_role: str | None,
+        forwarded_user_id: str | None,
+    ) -> UserRole:
+        if forwarded_user_role:
+            try:
+                return UserRole(forwarded_user_role)
+            except ValueError:
+                self.logger.warning("Invalid gateway user role received")
+        return UserRole.USER

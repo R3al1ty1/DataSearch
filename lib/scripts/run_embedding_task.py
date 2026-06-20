@@ -7,9 +7,6 @@ Usage:
 import asyncio
 import os
 
-os.environ.setdefault('POSTGRES_HOST', 'localhost')
-os.environ.setdefault('POSTGRES_PORT', '5434')
-os.environ.setdefault('POSTGRES_DB', 'datasearch_db')
 os.environ['DEBUG'] = 'false'
 
 from lib.core.container import container
@@ -23,7 +20,7 @@ async def check_datasets_status():
 
         if datasets:
             print("\nFirst 5 datasets:")
-            for ds in datasets[:5]:
+            for ds in datasets[:10]:
                 print(
                     f"  - [{ds.source_name}] {ds.external_id}: "
                     f"{ds.title[:50]}..."

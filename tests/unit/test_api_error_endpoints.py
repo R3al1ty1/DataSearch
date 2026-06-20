@@ -9,7 +9,9 @@ from fastapi.testclient import TestClient
 
 from lib.auth.dependencies import get_current_active_user, get_current_user, get_uow
 from lib.auth.models import User
+from lib.auth.services.auth_service import AuthService
 from lib.core.constants import UserRole
+from lib.core.container import container
 from lib.core.exceptions import register_exception_handlers
 from lib.router import api_router
 
@@ -19,8 +21,30 @@ class DummyDatasets:
         return None
 
 
+class DummyUsers:
+    def __init__(self):
+        self.by_id = {}
+
+    async def get_by_id(self, user_id):
+        return self.by_id.get(user_id)
+
+    async def create(self, user):
+        now = datetime.now(UTC)
+        user.created_at = now
+        user.updated_at = now
+        self.by_id[user.id] = user
+        return user
+
+
 class DummyUnitOfWork:
     datasets = DummyDatasets()
+
+    def __init__(self):
+        self.users = DummyUsers()
+        self.commits = 0
+
+    async def commit(self):
+        self.commits += 1
 
 
 async def override_uow() -> AsyncIterator[DummyUnitOfWork]:
@@ -105,6 +129,58 @@ def test_protected_endpoint_with_inactive_user_returns_account_inactive(client):
 
     assert response.status_code == 403
     assert response.json()["error_code"] == "ACCOUNT_INACTIVE"
+
+
+def test_gateway_auth_creates_user_from_forwarded_identity(client, monkeypatch):
+    monkeypatch.setitem(
+        container.__dict__,
+        "auth_service",
+        AuthService(
+            token_service=None,
+            rate_limit_service=None,
+            settings=None,
+            logger=logging.getLogger("test"),
+        ),
+    )
+    monkeypatch.setitem(
+        container.__dict__,
+        "settings",
+        type("Settings", (), {"DATASEARCH_SERVICE_TOKEN": "service-secret"})(),
+    )
+
+    response = client.get(
+        "/api/auth/me",
+        headers={
+            "x-service-token": "service-secret",
+            "x-user-id": str(uuid4()),
+            "x-user-role": UserRole.ADMIN.value,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["email"].endswith("@gateway.local")
+    assert body["role"] == UserRole.ADMIN.value
+    assert body["is_active"] is True
+
+
+def test_gateway_auth_rejects_wrong_service_token(client, monkeypatch):
+    monkeypatch.setitem(
+        container.__dict__,
+        "settings",
+        type("Settings", (), {"DATASEARCH_SERVICE_TOKEN": "service-secret"})(),
+    )
+
+    response = client.get(
+        "/api/auth/me",
+        headers={
+            "x-service-token": "wrong",
+            "x-user-id": str(uuid4()),
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error_code"] == "MISSING_AUTH_HEADER"
 
 
 def test_openapi_documents_common_error_responses(client):
